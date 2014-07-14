@@ -25,6 +25,14 @@ namespace ClientPatcher
         {
             switch (template)
             {
+                case 1:
+                    ServerName = "Korea 1";
+                    PatchInfoUrl = "http://ww1.openmeridian.org/1/patchinfo.txt";
+                    ClientFolder = "%PROGRAMFILES%\\Open Meridian\\Meridian Korea 1";
+                    ClientFolder = Environment.ExpandEnvironmentVariables(ClientFolder);
+                    PatchBaseUrl = "http://ww1.openmeridian.org/1/clientpatch";
+                    Default = false;
+                    break;
                 case 104:
                     ServerName = "104";
                     PatchInfoUrl = "http://ww1.openmeridian.org/104/patchinfo.txt";

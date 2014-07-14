@@ -42,6 +42,7 @@ namespace ClientPatcher
                 Servers = new List<PatcherSettings>();
                 Servers.Add(new PatcherSettings(103)); //default entries, with "templates" defined in the class
                 Servers.Add(new PatcherSettings(104));
+                Servers.Add(new PatcherSettings(1));
                 GrantAccess();
                 SaveSettings();
             }
