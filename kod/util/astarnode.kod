@@ -1,0 +1,77 @@
+AstarNode
+
+constants:
+   
+resources:
+
+classvars:
+
+properties:
+
+poParentNode = $
+
+%In order to calculate G, we need to take the G of its parent (the square where we came from) and to add 1 to it. Therefore, the G of each square will represent the total cost of the generated path from point A until the square.
+piMovementCost = 0
+
+%To put it simply, we will use the “Manhattan distance method” (Also called “Manhattan length” or “city block distance”) that just counts the number of horizontal and vertical square remaining to reach point B without taking into account of any obstacles or differences of land.
+piHeuristicCost = 0
+
+%MovementCost + HeuristicCost
+piScore = 0
+
+piRow = 0
+piCol = 0
+
+messages:
+
+Constructor(iRow = 0, iCol = 0, oParentNode = $, iEndRow = 0, iEndCol = 0)
+{
+	piRow = iRow;
+	piCol = iCol;
+	poParentNode = oParentNode;
+	Send(self,@CalculateMovementCost);
+	Send(self,@CaclculateHeuresticCost,#iEndRow=iEndRow,#iEndCol=iEndCol);
+	Send(Self,@CalculateScore);
+	return;
+}
+
+GetRow()
+{
+	return piRow;
+}
+
+GetCol()
+{
+	return piCol;
+}
+
+CalculateMovementCost()
+{
+	if poParentNode <> $
+	{
+		piMovementCost = Send(poParentNode,@GetMovementCost) + 1;
+		return;
+	}
+	piMovementCost = 1;
+	return;
+}
+
+GetMovementCost()
+{
+	return piMovementCost;
+}
+
+CaclculateHeuresticCost(iEndRow = 0, iEndCol = 0)
+{
+	piHeuristicCost = abs(iEndRow - piRow) + abs(iEndCol - piCol);
+	return;
+}
+
+CalculateScore()
+{
+	piScore = piMovementCost + piHeuristicCost;
+	return;
+}
+
+end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

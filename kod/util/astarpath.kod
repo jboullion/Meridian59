@@ -1,0 +1,115 @@
+AstarPath
+
+constants:
+
+   include blakston.khd
+   
+resources:
+
+classvars:
+
+properties:
+
+plOpen = $
+plClosed = $
+
+%Room we are moving within
+poRoom = $
+
+piStartRow = 0
+piStartCol = 0
+
+piEndRow = 0
+piEndCol = 0
+
+messages:
+
+Constructor(oRoom = $, iStartRow = 0, iStartCol = 0, iEndRow = 0, iEndCol = 0)
+{
+	plOpen = [];
+	plClosed = [];
+	
+	Debug("Constructor():",oRoom, iStartRow, iStartCol, iEndRow, iEndCol);
+	
+	if oRoom <> $ 
+	{
+		poRoom = oRoom;
+		piStartRow = iStartRow;
+		piStartCol = iStartCol;
+		piEndRow = iEndRow;
+		piEndCol = iEndCol;
+	}
+	Send(self,@Constructed);
+	return;
+}
+
+Constructed()
+{
+	local oStartNode;
+	%%adds the start location to the open list as the first item
+	oStartNode = Send(self,@CreateNode,#iRow=piStartRow,#iCol=piStartCol);
+	Debug ("oStartNode",oStartNode);
+	if oStartNode <> $
+	{
+		Debug("Constructed(): Adding Start Node to Open List");
+		Cons(plOpen,oStartNode);
+	}
+	return;
+}
+
+CreateNode(iRow = 0, iCol = 0)
+{	
+	local oNode;
+	if poRoom <> $ 
+	{
+		oNode = Create(&AstarNode,#iRow=iRow,#iCol=iCol,#iEndRow=piEndRow,#iEndCol=piEndCol);
+		Debug("CreateNode(): oNode",oNode);
+		if oNode <> $
+		{
+			return oNode;
+		}
+		return FALSE;
+	}
+	return FALSE;
+}
+
+ScanNode(oNode = $)
+{
+	local iNodeRow, iNodeCol, oNewNode;
+	iNodeRow = Send(oNode,@GetRow);
+	iNodeCol = Send(oNode,@GetCol);
+	
+	if Send(poRoom,@CanMoveInRoomFineProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
+		#iEndRow=iNodeRow+1,#iEndCol=iNodeCol)
+	{
+		oNewNode = Send(self,@CreateNode,#iRow=iNodeRow+1,#iCol=iNodeCol);
+		Debug("Can Move North 1 Row, Adding to Open list",oNewNode);
+		Cons(plOpen,oNewNode);
+	}
+	if Send(poRoom,@CanMoveInRoomFineProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
+		#iEndRow=iNodeRow-1,#iEndCol=iNodeCol)
+	{
+		oNewNode = Send(self,@CreateNode,#iRow=iNodeRow-1,#iCol=iNodeCol);
+		Debug("Can Move South 1 Row, Adding to Open list",oNewNode);
+		Cons(plOpen,oNewNode);
+	}
+	if Send(poRoom,@CanMoveInRoomFineProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
+		#iEndRow=iNodeRow,#iEndCol=iNodeCol+1)
+	{
+		oNewNode = Send(self,@CreateNode,#iRow=iNodeRow,#iCol=iNodeCol+1);
+		Debug("Can Move East 1 Col, Adding to Open list",oNewNode);
+		Cons(plOpen,oNewNode);
+	}
+	if Send(poRoom,@CanMoveInRoomFineProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
+		#iEndRow=iNodeRow,#iEndCol=iNodeCol-1)
+	{
+		oNewNode = Send(self,@CreateNode,#iRow=iNodeRow,#iCol=iNodeCol-1);
+		Debug("Can Move West 1 Col, Adding to Open list",oNewNode);
+		Cons(plOpen,oNewNode);
+	}
+	return;
+}
+
+
+end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

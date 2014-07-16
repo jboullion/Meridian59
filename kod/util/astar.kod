@@ -1,0 +1,65 @@
+Astar
+
+constants:
+
+   include blakston.khd
+
+resources:
+
+classvars:
+
+properties:
+
+plAstarPaths = $
+
+
+
+messages:
+
+Constructor()
+{
+	plAstarPaths = [ ];
+	return; 
+}
+
+Recreate()
+{
+	%TODO: Pass Recreate message to all plAstarPaths
+	plAstarPaths = [ ];
+	return;
+}
+
+CreatePath(oFrom = $, oTo  = $)
+{
+	local oRoom, iStartRow, iStartCol, iEndRow, iEndCol, oPath, temp;
+	
+	if oFrom = $ OR oTo = $
+	{
+		%% for debugging only, if no parameters, make some!
+		%Newb1 = 1011, get the room
+		oRoom = Send(SYS,@FindRoomByNum,#num=1011); 
+		%get plActive to see if we have 2 active objects
+		temp = Send(oRoom,@GetplActive);
+		if (Length(temp) > 1)
+		{
+			%if we have 2+, take the first two, assume them as start and end points
+			oFrom = First(First(temp));
+			oTo = First(Nth(temp,2));
+		}
+	}
+
+	oRoom = Send(oFrom,@GetOwner);
+	iStartRow = (Send(oFrom,@GetRow));
+	iStartCol = (Send(oFrom,@GetCol));
+	iEndRow = (Send(oTo,@GetRow));
+	iEndCol = (Send(oTo,@GetCol));
+	%create the path object, which will start calculating things and add it to our list.
+	oPath = Create(&AstarPath,#oRoom=oRoom,#iStartRow=iStartRow,
+		#iStartCol=iStartCol,#iEndRow = iEndRow, #iEndCol = iEndCol);
+	plAstarPaths = Cons(oPath,plAstarPaths);
+	
+	return oPath;
+}
+
+end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
