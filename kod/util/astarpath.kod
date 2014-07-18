@@ -29,7 +29,7 @@ Constructor(oRoom = $, iStartRow = 0, iStartCol = 0, iEndRow = 0, iEndCol = 0)
 	plOpen = [];
 	plClosed = [];
 	
-	Debug("Constructor():",oRoom, iStartRow, iStartCol, iEndRow, iEndCol);
+	%Debug("Constructor():",oRoom, iStartRow, iStartCol, iEndRow, iEndCol);
 	
 	if oRoom <> $ 
 	{
@@ -48,22 +48,22 @@ Constructed()
 	local oStartNode;
 	%%adds the start location to the open list as the first item
 	oStartNode = Send(self,@CreateNode,#iRow=piStartRow,#iCol=piStartCol);
-	Debug ("oStartNode",oStartNode);
+	%Debug ("oStartNode",oStartNode);
 	if oStartNode <> $
 	{
-		Debug("Constructed(): Adding Start Node to Open List");
-		Cons(plOpen,oStartNode);
+		%Debug("Constructed(): Adding Start Node to Open List:",plOpen);
+		plOpen = Cons(plOpen,oStartNode);
 	}
 	return;
 }
 
-CreateNode(iRow = 0, iCol = 0)
+CreateNode(iRow = 0, iCol = 0, oParent = $)
 {	
 	local oNode;
 	if poRoom <> $ 
 	{
-		oNode = Create(&AstarNode,#iRow=iRow,#iCol=iCol,#iEndRow=piEndRow,#iEndCol=piEndCol);
-		Debug("CreateNode(): oNode",oNode);
+		oNode = Create(&AstarNode,#iRow=iRow,#iCol=iCol,#iEndRow=piEndRow,#iEndCol=piEndCol,#oParent=oParent);
+		%Debug("CreateNode(",iRow, iCol, oParent,"): oNode",oNode);
 		if oNode <> $
 		{
 			return oNode;
@@ -82,32 +82,40 @@ ScanNode(oNode = $)
 	if Send(poRoom,@CanMoveInRoomFineProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
 		#iEndRow=iNodeRow+1,#iEndCol=iNodeCol)
 	{
-		oNewNode = Send(self,@CreateNode,#iRow=iNodeRow+1,#iCol=iNodeCol);
+		oNewNode = Send(self,@CreateNode,#iRow=iNodeRow+1,#iCol=iNodeCol,#oParent=oNode);
 		Debug("Can Move North 1 Row, Adding to Open list",oNewNode);
-		Cons(plOpen,oNewNode);
+		plOpen = Cons(plOpen,oNewNode);
 	}
 	if Send(poRoom,@CanMoveInRoomFineProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
 		#iEndRow=iNodeRow-1,#iEndCol=iNodeCol)
 	{
-		oNewNode = Send(self,@CreateNode,#iRow=iNodeRow-1,#iCol=iNodeCol);
+		oNewNode = Send(self,@CreateNode,#iRow=iNodeRow-1,#iCol=iNodeCol,#oParent=oNode);
 		Debug("Can Move South 1 Row, Adding to Open list",oNewNode);
-		Cons(plOpen,oNewNode);
+		plOpen = Cons(plOpen,oNewNode);
 	}
 	if Send(poRoom,@CanMoveInRoomFineProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
 		#iEndRow=iNodeRow,#iEndCol=iNodeCol+1)
 	{
-		oNewNode = Send(self,@CreateNode,#iRow=iNodeRow,#iCol=iNodeCol+1);
+		oNewNode = Send(self,@CreateNode,#iRow=iNodeRow,#iCol=iNodeCol+1,#oParent=oNode);
 		Debug("Can Move East 1 Col, Adding to Open list",oNewNode);
-		Cons(plOpen,oNewNode);
+		plOpen = Cons(plOpen,oNewNode);
 	}
 	if Send(poRoom,@CanMoveInRoomFineProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
 		#iEndRow=iNodeRow,#iEndCol=iNodeCol-1)
 	{
-		oNewNode = Send(self,@CreateNode,#iRow=iNodeRow,#iCol=iNodeCol-1);
+		oNewNode = Send(self,@CreateNode,#iRow=iNodeRow,#iCol=iNodeCol-1,#oParent=oNode);
 		Debug("Can Move West 1 Col, Adding to Open list",oNewNode);
-		Cons(plOpen,oNewNode);
+		plOpen = Cons(plOpen,oNewNode);
 	}
 	return;
+}
+
+FindLowestScore()
+{
+	local oNode;
+	for oNode in plOpen
+	{
+	}
 }
 
 

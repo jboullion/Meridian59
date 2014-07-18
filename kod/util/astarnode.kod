@@ -24,11 +24,11 @@ piCol = 0
 
 messages:
 
-Constructor(iRow = 0, iCol = 0, oParentNode = $, iEndRow = 0, iEndCol = 0)
+Constructor(iRow = 0, iCol = 0, oParent = $, iEndRow = 0, iEndCol = 0)
 {
 	piRow = iRow;
 	piCol = iCol;
-	poParentNode = oParentNode;
+	poParentNode = oParent;
 	Send(self,@CalculateMovementCost);
 	Send(self,@CaclculateHeuresticCost,#iEndRow=iEndRow,#iEndCol=iEndCol);
 	Send(Self,@CalculateScore);
@@ -52,7 +52,7 @@ CalculateMovementCost()
 		piMovementCost = Send(poParentNode,@GetMovementCost) + 1;
 		return;
 	}
-	piMovementCost = 1;
+	piMovementCost = 0;
 	return;
 }
 
