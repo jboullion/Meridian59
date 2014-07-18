@@ -45,6 +45,16 @@ GetCol()
 	return piCol;
 }
 
+GetMovementCost()
+{
+	return piMovementCost;
+}
+
+GetScore()
+{
+	return piScore;
+}
+
 CalculateMovementCost()
 {
 	if poParentNode <> $
@@ -54,11 +64,6 @@ CalculateMovementCost()
 	}
 	piMovementCost = 0;
 	return;
-}
-
-GetMovementCost()
-{
-	return piMovementCost;
 }
 
 CaclculateHeuresticCost(iEndRow = 0, iEndCol = 0)
