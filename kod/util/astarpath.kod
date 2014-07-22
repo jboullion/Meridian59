@@ -1,9 +1,7 @@
 AstarPath
 
 constants:
-
-   include blakston.khd
-   
+	include blakston.khd
 resources:
 
 classvars:
@@ -15,6 +13,8 @@ plClosed = $
 
 %Room we are moving within
 poRoom = $
+
+poStartNode = $
 
 piStartRow = 0
 piStartCol = 0
@@ -43,23 +43,39 @@ Constructor(oRoom = $, iStartRow = 0, iStartCol = 0, iEndRow = 0, iEndCol = 0)
 	return;
 }
 
+Recreate()
+{
+	local i;
+	
+	for i in plOpen
+	{
+		Send(i,@Recreate);
+	}
+	for i in plClosed
+	{
+		Send(i,@Recreate);
+	}
+	return;
+}
+
 Constructed()
 {
 	local oStartNode;
-	%%adds the start location to the open list as the first item
+	%%creates the starting position node
 	oStartNode = Send(self,@CreateNode,#iRow=piStartRow,#iCol=piStartCol);
 	%Debug ("oStartNode",oStartNode);
 	if oStartNode <> $
 	{
-		%Debug("Constructed(): Adding Start Node to Open List:",plOpen);
-		plOpen = Cons(oStartNode,plOpen);
+		%Debug("Constructed(): Adding Start Node to Closed List:",plClosed);
+		plClosed = Cons(oStartNode,plClosed);
 	}
+	poStartNode = oStartNode;
 	return;
 }
 
 CreateNode(iRow = 0, iCol = 0, oParent = $)
 {	
-	local oNode;
+	local oNode, i;
 	if poRoom <> $ 
 	{
 		oNode = Create(&AstarNode,#iRow=iRow,#iCol=iCol,#iEndRow=piEndRow,#iEndCol=piEndCol,#oParent=oParent);
@@ -73,52 +89,181 @@ CreateNode(iRow = 0, iCol = 0, oParent = $)
 	return FALSE;
 }
 
+FindNextMove()
+{
+	local oLastNode;
+	
+	oLastNode = First(plClosed);
+	Send(self,@ScanNode,#oNode=oLastNode);
+	oLastNode = Send(self,@FindLowestScore);
+	return;
+}
+
 ScanNode(oNode = $)
 {
-	local iNodeRow, iNodeCol, oNewNode;
+	local iNodeRow, iNodeCol, oNewNode, oFoundNode;
 	iNodeRow = Send(oNode,@GetRow);
 	iNodeCol = Send(oNode,@GetCol);
+	oFoundNode = $;
 	
 	if Send(poRoom,@CanMoveInRoomFineProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
 		#iEndRow=iNodeRow+1,#iEndCol=iNodeCol)
 	{
-		oNewNode = Send(self,@CreateNode,#iRow=iNodeRow+1,#iCol=iNodeCol,#oParent=oNode);
-		Debug("Can Move North 1 Row, Adding to Open list",oNewNode);
-		plOpen = Cons(oNewNode,plOpen);
+		oFoundNode = Send(self,@GetNode,#iRow=iNodeRow+1,#iCol=iNodeCol);
+		if oFoundNode <> $
+		{
+			Debug("Node exists, skipping");
+		}
+		else
+		{
+			oNewNode = Send(self,@CreateNode,#iRow=iNodeRow+1,#iCol=iNodeCol,#oParent=oNode);
+			%Debug("Can Move South 1 Row, Adding to Open list",oNewNode);
+			plOpen = Cons(oNewNode,plOpen);
+		}
 	}
 	if Send(poRoom,@CanMoveInRoomFineProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
 		#iEndRow=iNodeRow-1,#iEndCol=iNodeCol)
 	{
-		oNewNode = Send(self,@CreateNode,#iRow=iNodeRow-1,#iCol=iNodeCol,#oParent=oNode);
-		Debug("Can Move South 1 Row, Adding to Open list",oNewNode);
-		plOpen = Cons(oNewNode,plOpen);
+		oFoundNode = Send(self,@GetNode,#iRow=iNodeRow-1,#iCol=iNodeCol);
+		if oFoundNode <> $
+		{
+			Debug("Node exists, skipping");
+		}
+		else
+		{
+			oNewNode = Send(self,@CreateNode,#iRow=iNodeRow-1,#iCol=iNodeCol,#oParent=oNode);
+			%Debug("Can Move North 1 Row, Adding to Open list",oNewNode);
+			plOpen = Cons(oNewNode,plOpen);
+		}
 	}
 	if Send(poRoom,@CanMoveInRoomFineProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
 		#iEndRow=iNodeRow,#iEndCol=iNodeCol+1)
 	{
-		oNewNode = Send(self,@CreateNode,#iRow=iNodeRow,#iCol=iNodeCol+1,#oParent=oNode);
-		Debug("Can Move East 1 Col, Adding to Open list",oNewNode);
-		plOpen = Cons(oNewNode,plOpen);
+		oFoundNode = Send(self,@GetNode,#iRow=iNodeRow,#iCol=iNodeCol+1);
+		if oFoundNode <> $
+		{
+			Debug("Node exists, skipping");
+		}
+		else
+		{
+			oNewNode = Send(self,@CreateNode,#iRow=iNodeRow,#iCol=iNodeCol+1,#oParent=oNode);
+			%Debug("Can Move East 1 Row, Adding to Open list",oNewNode);
+			plOpen = Cons(oNewNode,plOpen);
+		}
 	}
 	if Send(poRoom,@CanMoveInRoomFineProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
 		#iEndRow=iNodeRow,#iEndCol=iNodeCol-1)
 	{
-		oNewNode = Send(self,@CreateNode,#iRow=iNodeRow,#iCol=iNodeCol-1,#oParent=oNode);
-		Debug("Can Move West 1 Col, Adding to Open list",oNewNode);
-		plOpen = Cons(oNewNode,plOpen);
+		oFoundNode = Send(self,@GetNode,#iRow=iNodeRow,#iCol=iNodeCol-1);
+		if oFoundNode <> $
+		{
+			Debug("Node exists, skipping");
+		}
+		else
+		{
+			oNewNode = Send(self,@CreateNode,#iRow=iNodeRow,#iCol=iNodeCol-1,#oParent=oNode);
+			%Debug("Can Move West 1 Row, Adding to Open list",oNewNode);
+			plOpen = Cons(oNewNode,plOpen);
+		}
 	}
 	return;
 }
 
 FindLowestScore()
 {
-	local oNode,oFoundNode,score;
+	local i, lNodes, lFinal, iLow, iIndex, oFinalNode;
 	
-	%todo: find lowest score :P
+	%get a copy of the open list to work with
+	lNodes = Send(SYS, @ListCopy,#source=plOpen);
+	
+	lFinal = $;
+	%%Insertion sort
+	while lNodes <> $
+	{
+		iLow = MAX_INT;
+		iIndex = $;
+		
+		for i in lNodes
+		{
+			if Send(i,@GetScore) < iLow
+			{
+				iIndex = i;
+				iLow = Send(i,@GetScore);
+			}
+		}
+		
+		if iIndex = $ OR iLow = MAX_INT
+        {
+			debug("SORT WENT WAY BAD!");
+			
+			return $;
+		}
+		
+		lFinal = Cons(iIndex,lFinal);
+		lNodes = DelListElem(lNodes,iIndex);
+	}
+	%%The last item in the list is the lowest score.
+	oFinalNode = Nth(lFinal,Length(lFinal));
+	%%Add it to the closed list (our path)
+	plClosed = Cons(oFinalNode,plClosed);
+	%%Remove it from the open list
+	plOpen = DelListElem(plOpen,oFinalNode);
+	
+	return oFinalNode;
+}
+
+ShowClosed()
+{
+	local i;
+	
+	for i in plClosed
+	{
+		Send(SYS,@PutInRoom,#classtype=&Apple,#rid=Send(poRoom,@GetRoomNum),#row=Send(i,@GetRow),#col=Send(i,@GetCol));
+	}
 	
 	return;
 }
 
+ShowOpen()
+{
+	local i;
+	
+	for i in plOpen
+	{
+		Send(SYS,@PutInRoom,#classtype=&Mushroom,#rid=Send(poRoom,@GetRoomNum),#row=Send(i,@GetRow),#col=Send(i,@GetCol));
+	}
+	
+	return;
+}
+
+Delete()
+{
+	plOpen = $;
+	plClosed = $;
+	return;
+}
+
+GetNode(iRow = 0, iCol = 0)
+{
+	local i;
+	for i in plClosed
+	{
+		if Send(i,@GetCol) = iCol AND Send(i,@GetRow) = iRow
+		{
+			Debug("Node exists in plClosed:",i,iRow,iCol);
+			return i;
+		}
+	}
+	for i in plOpen
+	{
+		if Send(i,@GetCol) = iCol AND Send(i,@GetRow) = iRow
+		{
+			Debug("Node exists in plOpen:",i,iRow,iCol);
+			return i;
+		}
+	}
+	return $;
+}
 
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

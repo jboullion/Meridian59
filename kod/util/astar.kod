@@ -24,12 +24,15 @@ Constructor()
 
 Recreate()
 {
-	%TODO: Pass Recreate message to all plAstarPaths
-	plAstarPaths = [ ];
+	local i;
+	for i in plAstarPaths
+	{
+		Send(i,@Recreate);
+	}
 	return;
 }
 
-CreatePath(oFrom = $, oTo  = $)
+CreatePath(oFrom = $, oTo  = $, oTestRoom = $)
 {
 	local oRoom, iStartRow, iStartCol, iEndRow, iEndCol, oPath, temp;
 	
@@ -37,7 +40,14 @@ CreatePath(oFrom = $, oTo  = $)
 	{
 		%% for debugging only, if no parameters, make some!
 		%Newb1 = 1011, get the room
-		oRoom = Send(SYS,@FindRoomByNum,#num=1011); 
+		if oTestRoom <> $
+		{
+			oRoom = oTestRoom;
+		}
+		else
+		{
+			oRoom = Send(SYS,@FindRoomByNum,#num=1011); 
+		}
 		%get plActive to see if we have 2 active objects
 		temp = Send(oRoom,@GetplActive);
 		if (Length(temp) > 1)
@@ -59,6 +69,21 @@ CreatePath(oFrom = $, oTo  = $)
 	plAstarPaths = Cons(oPath,plAstarPaths);
 	
 	return oPath;
+}
+
+RemovePath(oNode = $)
+{
+	if oNode <> $
+	{
+		DelListElem(plAstarPaths,oNode);
+	}
+	return;
+}
+
+Delete()
+{
+	plAstarPaths = $;
+	return; 
 }
 
 end
