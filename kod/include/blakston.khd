@@ -58,9 +58,8 @@
    CONTAINER_YES     = 0x00000020
    LOOK_YES          = 0
    LOOK_NO           = 0x00000040
-
-   % unused       = 0x00000080
-
+   ITEM_MAGIC_YES    = 0x00000080
+   ITEM_MAGIC_NO     = 0
    INVISIBLE_YES     = 0x00000100
    INVISIBLE_NO      = 0
    OFFER_YES         = 0x00000200
@@ -114,9 +113,12 @@
    PLAYER_DM         = 0xC000
    PLAYER_CREATOR    = 0x10000
    PLAYER_SUPER      = 0x14000
+   PLAYER_MODERATOR  = 0x18000
    PLAYER_EVENT      = 0x1C000
 
    % What is the target, according to the viewer?  Used for special flagging.
+   MINION_SELF          = 0x00001000
+   MINION_OTHER         = 0x00002000
    PLAYER_IS_ENEMY      = 0x02000000
    PLAYER_IS_FRIEND     = 0x04000000
    PLAYER_IS_GUILDMATE  = 0x08000000
@@ -1843,7 +1845,7 @@
    SID_MEND = 13
    SID_EARTHQUAKE = 14
    SID_POISON = 15
-   SID_PALSY = 16
+
    SID_SUPER_STRENGTH = 17
    SID_TOUCH_OF_FLAME = 20
    SID_HOLY_TOUCH = 21
@@ -1894,7 +1896,7 @@
    SID_KARAHOLS_CURSE = 66
    SID_MANA_FOCUS = 67
    SID_MANA_BOMB = 68
-   SID_DEMENTIA = 69
+
    SID_BONK = 70
    SID_SCRY = 71
    SID_PURIFY = 72
@@ -2002,6 +2004,9 @@
    SID_LOADOUT = 183
    SID_CONVEYANCE = 184
    SID_DEATH_RIFT = 185
+   SID_PHASE = 186
+
+   SID_MEDITATE = 187
 
    % Depreciated spell IDs
    SID_LIGHTNING = 1                   % use SID_LIGHTNING_BOLT
@@ -2125,7 +2130,7 @@
 
    % First set of flags (in piFlags)
    % A mask of flags that are unaffected by ResetPlayerFlagList
-   PFLAG_MASK              = 0x463D7E
+   PFLAG_MASK              = 0x423D7E
 
    PFLAG_INVISIBLE         = 0x000001
    PFLAG_MURDERER          = 0x000002
@@ -2146,8 +2151,7 @@
    PFLAG_NO_MAGIC          = 0x008000
    PFLAG_NO_MOVE           = 0x010000
    PFLAG_LOG               = 0x020000
-   % Can the player broadcast messages?
-   PFLAG_SQUELCHED         = 0x040000
+
    PFLAG_ANONYMOUS         = 0x080000
    PFLAG_FORGOTTEN         = 0x100000
    PFLAG_MORPHED           = 0x200000
@@ -2156,7 +2160,8 @@
 
    % Second set of player flags (in piFlags2)
    % A mask of flags that are unaffected by ResetPlayerFlagList
-   PFLAG2_MASK             = 0x000080
+   PFLAG2_MASK             = 0x001E80
+
    PFLAG2_HASTED           = 0x000001
    PFLAG2_DANCING          = 0x000002
    PFLAG2_DETECT_GOOD      = 0x000004
@@ -2167,6 +2172,13 @@
    % DM set only.  No chance of revenants.
    PFLAG2_NOHAUNT          = 0x000080
    PFLAG2_KOCATAN_DEATH    = 0x000100
+   % Flags for squelching players.
+   PFLAG2_SQUELCHED_TELLS  = 0x000200
+   PFLAG2_SQUELCHED_BCAST  = 0x000400
+   PFLAG2_SQUELCHED_SAYS   = 0x000800
+   PFLAG2_SQUELCHED_POSTS  = 0x001000
+   % Sum of the other squelched flags.
+   PFLAG2_SQUELCHED_ALL    = 0x001E00
 
    % Set of flags just for DM's
    % DM is completely invisible
@@ -2258,6 +2270,8 @@
    EVENT_REST = 8
    % Player was disrupted by something external trying to disrupt.
    EVENT_DISRUPT = 9
+   % Player is moving to a new room but has not yet
+   EVENT_REQNEWOWNER = 10
 
    %%% Hot spot definitions
 

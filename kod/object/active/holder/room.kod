@@ -207,8 +207,8 @@ properties:
    % Background bitmap for room
    prBackground = $
 
-   % Default length: five minutes (in ms)
-   piDispose_delay = 180000
+   % Default length: 2.5 minutes (in ms)
+   piDispose_delay = 150000
    ptDispose = $
 
    % Exits list: each member is a list of row in this room, col in this room
@@ -710,18 +710,8 @@ messages:
       return;
    }
 
-   SomethingKilled(what = $,victim = $)
+   SomethingKilled(what=$,victim=$)
    {
-      local oSpell, oCaster;
-
-      oSpell = Send(SYS,@FindSpellByNum,#Num=SID_DEATHLINK);
-
-      if Send(self,@IsEnchanted,#what=oSpell)
-      {
-         oCaster = Send(self,@GetEnchantmentState,#what=oSpell);
-         Send(oSpell,@GiveKilledBenefits,#Caster=oCaster,#Victim=victim);
-      }
-      
       Send(self,@SetGroupTime,#victim=victim);
 
       propagate;
@@ -1248,6 +1238,20 @@ messages:
    {
       local oWatcher;
 
+      if what <> $
+         AND IsClass(what,&Player)
+         AND Send(what,@IsPhasedOut)
+      {
+         return FALSE;
+      }
+      
+      if victim <> $
+         AND IsClass(victim,&Player)
+         AND Send(victim,@IsPhasedOut)
+      {
+         return FALSE;
+      }
+      
       % Arena checks.
       if Send(self,@IsArena)
       {
@@ -1260,14 +1264,15 @@ messages:
          }
 
          % if the afflicted person is not a combatant, attack fails.
-         if IsClass(victim,&Player)
+         if IsClass(victim,&Battler)
             AND NOT Send(oWatcher,@IsCombatant,#who=victim)
          {
             return FALSE;
          }
 
          % if the caster is not a combatant, attack fails.
-         if NOT Send(oWatcher,@IsCombatant,#who=what)
+         if IsClass(what,&Player)
+            AND NOT Send(oWatcher,@IsCombatant,#who=what)
          {
             return FALSE;
          }
@@ -1528,8 +1533,10 @@ messages:
 
    DisposeTimer()
    {
-      local iTime, iLen, i, oEachObj, count, delete_index;
+      local iTime, iLen, i, oEachObj, count, delete_index,
+            iLengthDispose, lDisposeItems, j;
 
+      lDisposeItems = $;
       ptDispose = $;
       iTime = piDispose_delay + Random(-5000,5000);
       ptDispose = CreateTimer(self,@DisposeTimer,iTime);
@@ -1557,21 +1564,53 @@ messages:
       }
       else
       {
-         % Someone's in the room.  If there are more than 5 things in the room,
-         %  delete the 20% that are the oldest.  Note:  this may be screwed up
-         %  by permanent, non-deleting objects like trees and braziers.
+         % If we have more than 15 passive object in room, try to dispose some.
+         % This number is large to reduce the amount of times this is run
+         % unnecessarily in rooms with lots of passive objects present, or
+         % a small amount of items that don't really need disposing.
 
          iLen = Length(plPassive);
-         if iLen > 5
+
+         if iLen > 15
          {
-            delete_index = 4*iLen/5;
-            count = 0;
             for i in plPassive
             {
-               count = count + 1;
-               if count > delete_index
+               % If the passive object is actually an item, add it to dispose list
+               if IsClass(First(i),&Item)
                {
-                  Send(First(i),@DestroyDisposable);
+                  lDisposeItems = Cons(First(i),lDisposeItems);
+               }
+            }
+
+            iLengthDispose = Length(lDisposeItems);
+
+            % If we have more than 11 items on the ground, dispose 25%
+            if iLengthDispose > 11
+            {
+               delete_index = iLengthDispose/4;
+
+               % In rare cases we can end up with items piling up far too
+               % fast, so we should do a one-off dispose of a larger number
+               % to prevent the screen from crashing
+               if iLengthDispose > 75
+               {
+                  delete_index = iLengthDispose/2;
+               }
+
+               count = 0;
+
+               for j in lDisposeItems
+               {
+                  count = count + 1;
+                  if count <= delete_index
+                  {
+                     Send(j,@DestroyDisposable);
+                  }
+                  else
+                  {
+                     % Deleted all the appropriate items
+                     break;
+                  }
                }
             }
          }
@@ -1818,10 +1857,6 @@ messages:
    NewHoldObject(what = $,new_pos = $)
    {
       local iTimeLeft, i, each_obj;
-
-      % weight here just to be like normal holder
-      piBulk_hold = piBulk_hold + Send(what,@GetBulk);
-      piWeight_hold = piWeight_hold + Send(what,@GetWeight);
 
       % The object still thinks it's with it's old owner.  If it's an item from
       %   a player, then make sure the items don't disappear immediately.

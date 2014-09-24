@@ -139,17 +139,22 @@ int C_GodLog(int object_id,
 			 parm_node name_parm_array[])
 {
 	char buf[2000];
-	val_type parameter1;
+	int len_buf;
 	kod_statistics *kstat;
 	class_node *c;
 	kstat = GetKodStats();
 	c = GetClassByID(kstat->interpreting_class);
 
-	parameter1 = RetrieveValue(object_id,local_vars,normal_parm_array[1].type,
-			normal_parm_array[1].value);
+	sprintf(buf,"Object %i (CLASS %s) Reports: "
+		,object_id,c->fname);
 
-	sprintf(buf,"Object %i (CLASS %s) Reports: %s\n"
-		,object_id,c->fname,GetClassDebugStr(c,parameter1.v.data));
+	string_node *snod;
+
+	snod = GetTempString();
+	len_buf = strlen(buf);
+	memcpy(buf + len_buf,snod->data,snod->len_data);
+	*(buf + len_buf + snod->len_data) = 0;
+
 	gprintf(buf);
 	return NIL;
 }
@@ -1427,6 +1432,32 @@ int C_GetTimeRemaining(int object_id,local_var_type *local_vars,
 	ret_val.v.data = (int)(t->time - GetMilliCount());
 	if (ret_val.v.data < 0)
 		ret_val.v.data = 0;
+	
+	return ret_val.int_val;
+}
+
+int C_IsTimer(int object_id,local_var_type *local_vars,
+			 int num_normal_parms,parm_node normal_parm_array[],
+			 int num_name_parms,parm_node name_parm_array[])
+{
+	val_type var_check,ret_val;
+	
+	var_check = RetrieveValue(object_id,local_vars,normal_parm_array[0].type,
+			     normal_parm_array[0].value);
+	
+	ret_val.v.tag = TAG_INT;
+	
+	if (var_check.v.tag == TAG_NIL)
+	{
+		ret_val.v.data = False;
+		bprintf("C_IsTimer called with NIL timer by object %i",object_id);
+		return ret_val.int_val;
+	}
+	
+	if (var_check.v.tag == TAG_TIMER || var_check.v.tag == TAG_NIL)
+		ret_val.v.data = True;
+	else
+		ret_val.v.data = False;
 	
 	return ret_val.int_val;
 }

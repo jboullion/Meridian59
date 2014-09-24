@@ -159,7 +159,7 @@ classvars:
    viTreasure_type = TID_NONE
 
    viSpeed = SPEED_AVERAGE
-   viAttack_types = ATCK_WEAP_SLASH
+   viAttack_type = ATCK_WEAP_SLASH
    viAttributes = 0
    viDefault_behavior = AI_FIGHT_NEWBIESAFE | AI_MOVE_REGROUP
 
@@ -174,8 +174,8 @@ classvars:
    viShieldShape = SHIELDSHAPE_SLASH
    viInsignia = $
    
-   viCashMin = 500
-   viCashMax = 1000
+   viCashMin = 200
+   viCashMax = 600
 
 properties:
 
@@ -1044,7 +1044,9 @@ messages:
       {
          % Only a percentage chance to drop each item.  Too much stuff otherwise.
          % Don't drop the shield!  It's a quest/special item!
-         if (random(1,100) <= EQUIPMENT_DROP_PERCENT) AND (NOT IsClass(oUsedItem,vcShieldClass))
+         if (Random(1,100) <= EQUIPMENT_DROP_PERCENT)
+            AND (NOT IsClass(oUsedItem,vcShieldClass))
+            AND NOT pbIllusion
          {
             if (oItemAtt <> $) AND send(oItemAtt,@ReqAddToItem,#oItem=oUsedItem)
             {
@@ -1059,7 +1061,7 @@ messages:
             send(oUsedItem,@Delete);
          }
       }
-      
+
       plUsing = $;
 
       % Don't propagate.  We do everything here.
@@ -1175,6 +1177,11 @@ messages:
    CanMorphTo() 
    {
       return FALSE;
+   }
+   
+   GetEquippedItems()
+   {
+      return plUsing;
    }
 
 end

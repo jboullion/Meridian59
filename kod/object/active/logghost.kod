@@ -129,6 +129,7 @@ properties:
    prItemsLost = $
    prSpellPointsLost = $
    prSkillPointsLost = $
+   piSoldierShieldOverlay = $
 
 messages:
 
@@ -147,8 +148,7 @@ messages:
                  #fine_row=(Send(poGhostedPlayer,@GetFineRow)+2),
                  #fine_col=(Send(poGhostedPlayer,@GetFineCol)+2),
                  #new_angle=Send(poGhostedPlayer,@GetAngle));
-            ptPenaltyTimer = CreateTimer(self,@PenaltyTrigger,
-                                         (iPenaltyTime*1000));
+            ptPenaltyTimer = CreateTimer(self,@PenaltyTrigger,iPenaltyTime);
          }
       }
 
@@ -356,27 +356,6 @@ messages:
             BaseLossAmount = -1;
          }
 
-         % Loop through once to reduce LossCounter below Length(lSpells), and
-         %  keep iterations down for large penalties
-         if (LossCounter > Length(lSpells))
-         {
-            i = 0;
-            % iLoops = number of complete loops we're collapsing to one
-            iLoops = LossCounter / Length(lSpells);
-            while i < Length(lSpells)
-            {
-               i = i + 1;
-               iSpellAbility = Send(poGhostedPlayer,@DecodeSpellAbility,
-                                    #compound=Nth(lSpells,i));
-               LossAmount = Bound(BaseLossAmount*iLoops,$,-(iSpellAbility-5));
-               iAbilityNum = Send(poGhostedPlayer,@DecodeSpellNum,
-                                  #compound=Nth(lSpells,i));
-               Send(poGhostedPlayer,@ChangeSpellAbility,
-                    #spell_num=iAbilityNum,#amount=LossAmount);
-               numSpellPointsLost = (numSpellPointsLost - LossAmount);
-            }
-         }
-
          iLoops = 0;
          LossCounter = LossCounter - (numSpellPointsLost/BaseLossAmount);
          while (LossCounter > 0) and (iLoops < 200)
@@ -427,27 +406,6 @@ messages:
       if (lSkills <> $)
       {
          LossCounter = 2;
-
-         % Loop through once to reduce LossCounter below Length(lSkills),
-         %  and keep iterations down for large penalties
-         if LossCounter > Length(lSkills)
-         {
-            i = 0;
-            % Number of complete loops we're collapsing to one.
-            iLoops = LossCounter/Length(lSkills);
-            while i < Length(lSkills)
-            {
-               i = i + 1;
-               iSkillAbility = Send(poGhostedPlayer,@DecodeSkillAbility,
-                                    #compound=Nth(lSkills,i));
-               LossAmount = bound((BaseLossAmount*iLoops),$,-(iSkillAbility-5));
-               iAbilityNum = Send(poGhostedPlayer,@DecodeSkillNum,
-                                  #compound=Nth(lSkills,i));
-               Send(poGhostedPlayer,@ChangeSkillAbility,
-                    #skill_num=iAbilityNum,#amount=LossAmount);
-               numSkillPointsLost = numSkillPointsLost - LossAmount;
-            }
-         }
 
          iLoops = 0;
          LossCounter = LossCounter - (numSkillPointsLost/BaseLossAmount);
@@ -804,6 +762,7 @@ messages:
 
       if what = poGhostedPlayer
       {
+         Send(poGhostedPlayer,@SetPhaseTimeEqualTo,#amount=GetTimeRemaining(ptPenaltyTimer));
          Send(self,@Delete);
       }
 
@@ -820,7 +779,15 @@ messages:
 
       if prShield <> $
       {
-         piShield_frame = 2;
+         if piSoldierShieldOverlay = HS_SHIELD_BACK
+         {
+            piShield_frame = 1;
+         }
+         else
+         {
+            piShield_frame = 2;
+         }
+
          piLeft_frame = 7;
          piOverlays = piOverlays + 1;
       }
@@ -891,6 +858,11 @@ messages:
       prShield = Send(poGhostedPlayer,@GetShieldRsc);
       piShield_translation = Send(poGhostedPlayer,@GetShieldTranslation);
       oWeapon = Send(poGhostedPlayer,@LookUpPlayerWeapon);
+      
+      if Send(poGhostedPlayer,@FindUsing,#class=&SoldierShield) <> $
+      {
+         piSoldierShieldOverlay = Send(poGhostedPlayer,@GetShieldOverlayHotspot);
+      }
 
       piWeapon_translation = 0;
       prBowTop = $;
@@ -986,7 +958,15 @@ messages:
 
       if prShield <> $
       {
-         AddPacket(4,prShield,1,HS_LEFT_WEAPON);
+         if piSoldierShieldOverlay <> $
+         {
+            AddPacket(4,prShield,1,piSoldierShieldOverlay);
+         }
+         else
+         {
+            AddPacket(4,prShield,1,HS_LEFT_WEAPON);
+         }
+
          if piShield_translation <> 0
          {
             AddPacket(1,ANIMATE_TRANSLATION, 1,piShield_translation);
