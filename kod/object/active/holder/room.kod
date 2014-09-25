@@ -1098,9 +1098,9 @@ messages:
       return FALSE;
    }
    
-	CanMoveInRoomFineProxy(iStartRow = 0,iStartCol = 0,iEndRow = 0,iEndCol = 0)
+	CanMoveInRoomProxy(iStartRow = 0,iStartCol = 0,iEndRow = 0,iEndCol = 0)
 	{
-		return CanMoveInRoomFine(prmRoom, iStartRow, iStartCol, iEndRow, iEndCol);
+		return CanMoveInRoom(prmRoom, iStartRow, iStartCol, iEndRow, iEndCol);
 	}
 
    GetRoomSecurity()

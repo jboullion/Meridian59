@@ -23,6 +23,8 @@ piEndCol = 0
 poFrom = $
 poTo = $
 
+plDebugItems = $
+
 messages:
 
 Constructor(oFrom = $, oTo = $)
@@ -73,6 +75,25 @@ Constructed()
 	return;
 }
 
+CalculatePath()
+{
+	local i;
+	i = 0;
+	while i < 1
+	{
+		i = Send(self,@FindNextMove);
+	}
+	return;
+}
+
+RecalculatePath()
+{
+	Send(self,@RemoveDebugItems); %%DEBUG
+	Send(self,@Constructor,#oFrom=poFrom,#oTo=poTo);
+	Send(self,@CalculatePath);
+	return;
+}
+
 CreateNode(iRow = 0, iCol = 0, oParent = $)
 {	
 	local oNode, i;
@@ -94,23 +115,34 @@ FindNextMove()
 	local oLowestScoreNode;
 	
 	%%Get the square on the open list which has the lowest score.
-	%%Remove it from the open list
-	%%Add it to the closed list
-	
 	oLowestScoreNode = Send(self,@FindLowestScore);
-	Debug("Lowest Node: ", oLowestScoreNode);
+	if oLowestScoreNode = $
+	{
+		Debug("Lowest Node has 0 value, impossible movement");
+		return 1;
+	}
 	
+	%%Remove it from the open list
 	plOpen = DelListElem(oLowestScoreNode,plOpen);
-	
+	%%Add it to the closed list
 	plClosed = Cons(oLowestScoreNode,plClosed);
 	
-	%%DEBUG:
-	Send(SYS,@PutInRoom,#classtype=&Apple,#rid=Send(poRoom,@GetRoomNum),#row=Send(oLowestScoreNode,@GetRow),#col=Send(oLowestScoreNode,@GetCol));
+	%%Are we there yet?
+	if Send(oLowestScoreNode,@GetRow) = piEndRow AND Send(oLowestScoreNode,@GetCol) = piEndCol
+	{
+		Cons(Send(SYS,@PutInRoom,#classtype=&PlateArmor,#rid=Send(poRoom,@GetRoomNum),#row=Send(oLowestScoreNode,@GetRow),#col=Send(oLowestScoreNode,@GetCol)),plDebugItems); %%DEBUG
+		Debug("We have arrived at our destination");
+		return 1;	
+	}
+	else
+	{
+		Cons(Send(SYS,@PutInRoom,#classtype=&Apple,#rid=Send(poRoom,@GetRoomNum),#row=Send(oLowestScoreNode,@GetRow),#col=Send(oLowestScoreNode,@GetCol)),plDebugItems); %%DEBUG
+	}
 	
 	%%Scan the Node
 	Send(self,@ScanNode,#oNode=oLowestScoreNode);
 	
-	return;
+	return 0;
 }
 
 ScanNode(oNode = $)
@@ -121,13 +153,13 @@ ScanNode(oNode = $)
 	
 	oFoundNode = $;
 	%If Walkable
-	if Send(poRoom,@CanMoveInRoomFineProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
+	if Send(poRoom,@CanMoveInRoomProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
 		#iEndRow=iNodeRow+1,#iEndCol=iNodeCol)
 	{
 		oFoundNode = Send(self,@FindClosedNode,#iRow=iNodeRow+1,#iCol=iNodeCol);
 		if oFoundNode <> $
 		{
-			Debug("Node in Closed List, Skipping");
+			%Debug("Node in Closed List, Skipping");
 		}
 		else %And not closed
 		{	
@@ -149,13 +181,13 @@ ScanNode(oNode = $)
 	}
 	
 	oFoundNode = $;
-	if Send(poRoom,@CanMoveInRoomFineProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
+	if Send(poRoom,@CanMoveInRoomProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
 		#iEndRow=iNodeRow-1,#iEndCol=iNodeCol)
 	{
 		oFoundNode = Send(self,@FindClosedNode,#iRow=iNodeRow-1,#iCol=iNodeCol);
 		if oFoundNode <> $
 		{
-			Debug("Node in Closed List, Skipping");
+			%Debug("Node in Closed List, Skipping");
 		}
 		else
 		{
@@ -177,13 +209,13 @@ ScanNode(oNode = $)
 	}
 	
 	oFoundNode = $;
-	if Send(poRoom,@CanMoveInRoomFineProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
+	if Send(poRoom,@CanMoveInRoomProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
 		#iEndRow=iNodeRow,#iEndCol=iNodeCol+1)
 	{
 		oFoundNode = Send(self,@FindClosedNode,#iRow=iNodeRow,#iCol=iNodeCol+1);
 		if oFoundNode <> $
 		{
-			Debug("Node in Closed List, Skipping");
+			%Debug("Node in Closed List, Skipping");
 		}
 		else
 		{	
@@ -205,13 +237,13 @@ ScanNode(oNode = $)
 	}
 	
 	oFoundNode = $;
-	if Send(poRoom,@CanMoveInRoomFineProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
+	if Send(poRoom,@CanMoveInRoomProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
 		#iEndRow=iNodeRow,#iEndCol=iNodeCol-1)
 	{
 		oFoundNode = Send(self,@FindClosedNode,#iRow=iNodeRow,#iCol=iNodeCol-1);
 		if oFoundNode <> $
 		{
-			Debug("Node in Closed List, Skipping");
+			%Debug("Node in Closed List, Skipping");
 		}
 		else
 		{
@@ -273,27 +305,13 @@ FindLowestScore()
 	return oFinalNode;
 }
 
-ShowClosed()
+RemoveDebugItems()
 {
 	local i;
-	
-	for i in plClosed
+	for i in plDebugItems
 	{
-		Send(SYS,@PutInRoom,#classtype=&Apple,#rid=Send(poRoom,@GetRoomNum),#row=Send(i,@GetRow),#col=Send(i,@GetCol));
+		Send(i,@Delete);
 	}
-	
-	return;
-}
-
-ShowOpen()
-{
-	local i;
-	
-	for i in plOpen
-	{
-		Send(SYS,@PutInRoom,#classtype=&Mushroom,#rid=Send(poRoom,@GetRoomNum),#row=Send(i,@GetRow),#col=Send(i,@GetCol));
-	}
-	
 	return;
 }
 
@@ -311,7 +329,7 @@ FindClosedNode(iRow = 0, iCol = 0)
 	{
 		if Send(i,@GetCol) = iCol AND Send(i,@GetRow) = iRow
 		{
-			Debug("Node exists in plClosed:",i,iRow,iCol);
+			%Debug("Node exists in plClosed:",i,iRow,iCol);
 			return i;
 		}
 	}
@@ -325,7 +343,7 @@ FindOpenNode(iRow = 0, iCol = 0)
 	{
 		if Send(i,@GetCol) = iCol AND Send(i,@GetRow) = iRow
 		{
-			Debug("Node exists in plOpen:",i,iRow,iCol);
+			%Debug("Node exists in plOpen:",i,iRow,iCol);
 			return i;
 		}
 	}
