@@ -11,8 +11,7 @@ classvars:
 properties:
 
 plAstarPaths = $
-
-
+pbEnabled = 1
 
 messages:
 
@@ -25,16 +24,24 @@ Constructor()
 Recreate()
 {
 	local i;
-	for i in plAstarPaths
+	%%for debugging, create a path if we dont have one
+	if length(plAstarPaths) = 0
 	{
-		Send(i,@Recreate);
+		Send(self,@CreatePath);
+	}
+	else
+	{
+		for i in plAstarPaths
+		{
+			Send(i,@Recreate);
+		}
 	}
 	return;
 }
 
 CreatePath(oFrom = $, oTo  = $, oTestRoom = $)
 {
-	local oRoom, iStartRow, iStartCol, iEndRow, iEndCol, oPath, temp;
+	local oRoom, oPath, temp;
 	
 	if oFrom = $ OR oTo = $
 	{
@@ -58,14 +65,8 @@ CreatePath(oFrom = $, oTo  = $, oTestRoom = $)
 		}
 	}
 
-	oRoom = Send(oFrom,@GetOwner);
-	iStartRow = (Send(oFrom,@GetRow));
-	iStartCol = (Send(oFrom,@GetCol));
-	iEndRow = (Send(oTo,@GetRow));
-	iEndCol = (Send(oTo,@GetCol));
 	%create the path object, which will start calculating things and add it to our list.
-	oPath = Create(&AstarPath,#oRoom=oRoom,#iStartRow=iStartRow,
-		#iStartCol=iStartCol,#iEndRow=iEndRow, #iEndCol=iEndCol);
+	oPath = Create(&AstarPath,#oFrom=oFrom,#oTo=oTo);
 	plAstarPaths = Cons(oPath,plAstarPaths);
 	
 	return oPath;
@@ -84,6 +85,11 @@ Delete()
 {
 	plAstarPaths = $;
 	return; 
+}
+
+Enabled()
+{
+	return pbEnabled;
 }
 
 end

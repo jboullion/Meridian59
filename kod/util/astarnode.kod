@@ -55,27 +55,45 @@ GetScore()
 	return piScore;
 }
 
+%"G"
 CalculateMovementCost()
 {
+	%If we have a parent, get its MovementCost (G)
 	if poParentNode <> $
 	{
 		piMovementCost = Send(poParentNode,@GetMovementCost) + 1;
 		return;
 	}
 	piMovementCost = 0;
-	return;
+	return piMovementCost;
+}
+
+TryNewParent(oNode = $)
+{
+	local iNewMovementCost;
+	if oNode <> $
+	{
+		iNewMovementCost = Send(oNode,@GetMovementCost) + 1;
+		if iNewMovementCost < piMovementCost
+		{
+			poParentNode = oNode;
+			piMovementCost = iNewMovementCost;
+			Send(self,@CalculateScore);
+		}
+	}
+	return piMovementCost;
 }
 
 CaclculateHeuresticCost(iEndRow = 0, iEndCol = 0)
 {
 	piHeuristicCost = abs(iEndRow - piRow) + abs(iEndCol - piCol);
-	return;
+	return piHeuristicCost;
 }
 
 CalculateScore()
 {
 	piScore = piMovementCost + piHeuristicCost;
-	return;
+	return piScore;
 }
 
 end

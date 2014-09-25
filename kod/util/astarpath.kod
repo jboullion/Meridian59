@@ -14,31 +14,32 @@ plClosed = $
 %Room we are moving within
 poRoom = $
 
-poStartNode = $
-
 piStartRow = 0
 piStartCol = 0
 
 piEndRow = 0
 piEndCol = 0
 
+poFrom = $
+poTo = $
+
 messages:
 
-Constructor(oRoom = $, iStartRow = 0, iStartCol = 0, iEndRow = 0, iEndCol = 0)
+Constructor(oFrom = $, oTo = $)
 {
+	local oRoom, iStartRow, iStartCol, iEndRow, iEndCol;
+	
 	plOpen = [];
 	plClosed = [];
+	poFrom = oFrom;
+	poTo = oTo;
 	
-	%Debug("Constructor():",oRoom, iStartRow, iStartCol, iEndRow, iEndCol);
-	
-	if oRoom <> $ 
-	{
-		poRoom = oRoom;
-		piStartRow = iStartRow;
-		piStartCol = iStartCol;
-		piEndRow = iEndRow;
-		piEndCol = iEndCol;
-	}
+	poRoom = Send(oFrom,@GetOwner);
+	piStartRow = (Send(oFrom,@GetRow));
+	piStartCol = (Send(oFrom,@GetCol));
+	piEndRow = (Send(oTo,@GetRow));
+	piEndCol = (Send(oTo,@GetCol));
+
 	Send(self,@Constructed);
 	return;
 }
@@ -63,13 +64,12 @@ Constructed()
 	local oStartNode;
 	%%creates the starting position node
 	oStartNode = Send(self,@CreateNode,#iRow=piStartRow,#iCol=piStartCol);
-	%Debug ("oStartNode",oStartNode);
+	Debug ("oStartNode",oStartNode);
 	if oStartNode <> $
 	{
-		%Debug("Constructed(): Adding Start Node to Closed List:",plClosed);
 		plClosed = Cons(oStartNode,plClosed);
+		Send(self,@ScanNode,#oNode=oStartNode);
 	}
-	poStartNode = oStartNode;
 	return;
 }
 
@@ -91,11 +91,25 @@ CreateNode(iRow = 0, iCol = 0, oParent = $)
 
 FindNextMove()
 {
-	local oLastNode;
+	local oLowestScoreNode;
 	
-	oLastNode = First(plClosed);
-	Send(self,@ScanNode,#oNode=oLastNode);
-	oLastNode = Send(self,@FindLowestScore);
+	%%Get the square on the open list which has the lowest score.
+	%%Remove it from the open list
+	%%Add it to the closed list
+	
+	oLowestScoreNode = Send(self,@FindLowestScore);
+	Debug("Lowest Node: ", oLowestScoreNode);
+	
+	plOpen = DelListElem(oLowestScoreNode,plOpen);
+	
+	plClosed = Cons(oLowestScoreNode,plClosed);
+	
+	%%DEBUG:
+	Send(SYS,@PutInRoom,#classtype=&Apple,#rid=Send(poRoom,@GetRoomNum),#row=Send(oLowestScoreNode,@GetRow),#col=Send(oLowestScoreNode,@GetCol));
+	
+	%%Scan the Node
+	Send(self,@ScanNode,#oNode=oLowestScoreNode);
+	
 	return;
 }
 
@@ -104,66 +118,117 @@ ScanNode(oNode = $)
 	local iNodeRow, iNodeCol, oNewNode, oFoundNode;
 	iNodeRow = Send(oNode,@GetRow);
 	iNodeCol = Send(oNode,@GetCol);
-	oFoundNode = $;
 	
+	oFoundNode = $;
+	%If Walkable
 	if Send(poRoom,@CanMoveInRoomFineProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
 		#iEndRow=iNodeRow+1,#iEndCol=iNodeCol)
 	{
-		oFoundNode = Send(self,@GetNode,#iRow=iNodeRow+1,#iCol=iNodeCol);
+		oFoundNode = Send(self,@FindClosedNode,#iRow=iNodeRow+1,#iCol=iNodeCol);
 		if oFoundNode <> $
 		{
-			Debug("Node exists, skipping");
+			Debug("Node in Closed List, Skipping");
 		}
-		else
-		{
-			oNewNode = Send(self,@CreateNode,#iRow=iNodeRow+1,#iCol=iNodeCol,#oParent=oNode);
-			%Debug("Can Move South 1 Row, Adding to Open list",oNewNode);
-			plOpen = Cons(oNewNode,plOpen);
+		else %And not closed
+		{	
+			%is it in the Open List?
+			oFoundNode = Send(self,@FindOpenNode,#iRow=iNodeRow+1,#iCol=iNodeCol);
+			if oFoundNode <> $
+			{
+				%Yes? Recalculate Heueristic
+				Send(oFoundNode,@TryNewParent,#oNode=oNode);
+			}
+			else
+			{
+				%No? Create a new Node
+				oNewNode = Send(self,@CreateNode,#iRow=iNodeRow+1,#iCol=iNodeCol,#oParent=oNode);
+				%Debug("Can Move South 1 Row, Adding to Open list",oNewNode);
+				plOpen = Cons(oNewNode,plOpen);
+			}
 		}
 	}
+	
+	oFoundNode = $;
 	if Send(poRoom,@CanMoveInRoomFineProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
 		#iEndRow=iNodeRow-1,#iEndCol=iNodeCol)
 	{
-		oFoundNode = Send(self,@GetNode,#iRow=iNodeRow-1,#iCol=iNodeCol);
+		oFoundNode = Send(self,@FindClosedNode,#iRow=iNodeRow-1,#iCol=iNodeCol);
 		if oFoundNode <> $
 		{
-			Debug("Node exists, skipping");
+			Debug("Node in Closed List, Skipping");
 		}
 		else
 		{
-			oNewNode = Send(self,@CreateNode,#iRow=iNodeRow-1,#iCol=iNodeCol,#oParent=oNode);
-			%Debug("Can Move North 1 Row, Adding to Open list",oNewNode);
-			plOpen = Cons(oNewNode,plOpen);
+			%is it in the Open List?
+			oFoundNode = Send(self,@FindOpenNode,#iRow=iNodeRow-1,#iCol=iNodeCol);
+			if oFoundNode <> $
+			{
+				%Yes? Recalculate Heueristic
+				Send(oFoundNode,@TryNewParent,#oNode=oNode);
+			}
+			else
+			{
+				%No? Create a new Node
+				oNewNode = Send(self,@CreateNode,#iRow=iNodeRow-1,#iCol=iNodeCol,#oParent=oNode);
+				%Debug("Can Move North 1 Row, Adding to Open list",oNewNode);
+				plOpen = Cons(oNewNode,plOpen);
+			}
 		}
 	}
+	
+	oFoundNode = $;
 	if Send(poRoom,@CanMoveInRoomFineProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
 		#iEndRow=iNodeRow,#iEndCol=iNodeCol+1)
 	{
-		oFoundNode = Send(self,@GetNode,#iRow=iNodeRow,#iCol=iNodeCol+1);
+		oFoundNode = Send(self,@FindClosedNode,#iRow=iNodeRow,#iCol=iNodeCol+1);
 		if oFoundNode <> $
 		{
-			Debug("Node exists, skipping");
+			Debug("Node in Closed List, Skipping");
 		}
 		else
-		{
-			oNewNode = Send(self,@CreateNode,#iRow=iNodeRow,#iCol=iNodeCol+1,#oParent=oNode);
-			%Debug("Can Move East 1 Row, Adding to Open list",oNewNode);
-			plOpen = Cons(oNewNode,plOpen);
+		{	
+			%is it in the Open List?
+			oFoundNode = Send(self,@FindOpenNode,#iRow=iNodeRow,#iCol=iNodeCol+1);
+			if oFoundNode <> $
+			{
+				%Yes? Recalculate Heueristic
+				Send(oFoundNode,@TryNewParent,#oNode=oNode);
+			}
+			else
+			{
+				%No? Create a new Node
+				oNewNode = Send(self,@CreateNode,#iRow=iNodeRow,#iCol=iNodeCol+1,#oParent=oNode);
+				%Debug("Can Move East 1 Row, Adding to Open list",oNewNode);
+				plOpen = Cons(oNewNode,plOpen);
+			}
 		}
 	}
+	
+	oFoundNode = $;
 	if Send(poRoom,@CanMoveInRoomFineProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
 		#iEndRow=iNodeRow,#iEndCol=iNodeCol-1)
 	{
-		oFoundNode = Send(self,@GetNode,#iRow=iNodeRow,#iCol=iNodeCol-1);
+		oFoundNode = Send(self,@FindClosedNode,#iRow=iNodeRow,#iCol=iNodeCol-1);
 		if oFoundNode <> $
 		{
-			Debug("Node exists, skipping");
+			Debug("Node in Closed List, Skipping");
 		}
 		else
 		{
-			oNewNode = Send(self,@CreateNode,#iRow=iNodeRow,#iCol=iNodeCol-1,#oParent=oNode);
-			%Debug("Can Move West 1 Row, Adding to Open list",oNewNode);
-			plOpen = Cons(oNewNode,plOpen);
+			%is it in the Open List?
+			oFoundNode = Send(self,@FindOpenNode,#iRow=iNodeRow,#iCol=iNodeCol-1);
+			if oFoundNode <> $
+			{
+				%Yes? Recalculate Heueristic
+				Send(oFoundNode,@TryNewParent,#oNode=oNode);
+			}
+			else
+			{
+				%No? Create a new Node
+				oNewNode = Send(self,@CreateNode,#iRow=iNodeRow,#iCol=iNodeCol-1,#oParent=oNode);
+				%Debug("Can Move West 1 Row, Adding to Open list",oNewNode);
+				plOpen = Cons(oNewNode,plOpen);
+			}
 		}
 	}
 	return;
@@ -204,11 +269,7 @@ FindLowestScore()
 	}
 	%%The last item in the list is the lowest score.
 	oFinalNode = Nth(lFinal,Length(lFinal));
-	%%Add it to the closed list (our path)
-	plClosed = Cons(oFinalNode,plClosed);
-	%%Remove it from the open list
-	plOpen = DelListElem(plOpen,oFinalNode);
-	
+		
 	return oFinalNode;
 }
 
@@ -243,7 +304,7 @@ Delete()
 	return;
 }
 
-GetNode(iRow = 0, iCol = 0)
+FindClosedNode(iRow = 0, iCol = 0)
 {
 	local i;
 	for i in plClosed
@@ -254,6 +315,12 @@ GetNode(iRow = 0, iCol = 0)
 			return i;
 		}
 	}
+	return $;
+}
+
+FindOpenNode(iRow = 0, iCol = 0)
+{
+	local i;
 	for i in plOpen
 	{
 		if Send(i,@GetCol) = iCol AND Send(i,@GetRow) = iRow
