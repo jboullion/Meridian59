@@ -35,7 +35,7 @@ Constructor(oFrom = $, oTo = $)
 	
 	plOpen = [];
 	plClosed = [];
-	plDebugItems = [];
+	
 	poFrom = oFrom;
 	poTo = oTo;
 	
@@ -44,7 +44,9 @@ Constructor(oFrom = $, oTo = $)
 	piStartCol = (Send(oFrom,@GetCol));
 	piEndRow = (Send(oTo,@GetRow));
 	piEndCol = (Send(oTo,@GetCol));
-
+	
+	Send(self,@RemoveDebugItems);
+	
 	Send(self,@Constructed);
 	return;
 }
@@ -69,19 +71,17 @@ Constructed()
 	local oStartNode;
 	%%creates the starting position node
 	oStartNode = Send(self,@CreateNode,#iRow=piStartRow,#iCol=piStartCol);
-	Debug ("oStartNode",oStartNode);
+	%Debug ("oStartNode",oStartNode);
 	if oStartNode <> $
 	{
-		plClosed = Cons(oStartNode,plClosed);
 		Send(self,@ScanNode,#oNode=oStartNode);
 	}
 	%Uncomment To Calculate the Whole Path when created 
-	%Send(self,@CalculatePath);
+	Send(self,@CalculatePath);
 	return;
 }
 
 %Calculates the entire path
-%Used for Waypont Movement
 CalculatePath()
 {
 	local i;
@@ -90,17 +90,6 @@ CalculatePath()
 	{
 		i = Send(self,@FindNextMove);
 	}
-	return;
-}
-
-RecalculatePath()
-{
-	if plDebugItems <> $
-	{
-		Send(self,@RemoveDebugItems); %%DEBUG
-	}
-	Send(self,@Constructor,#oFrom=poFrom,#oTo=poTo);
-	Send(self,@CalculatePath);
 	return;
 }
 
@@ -122,16 +111,24 @@ CalculateStep(oTo = $)
 		Send(self,@Constructor,#oFrom=poFrom,#oTo=poTo);
 	}
 	
-	i = Send(self,@FindNextMove);
-	
+	%Instead of finding the next move here, lets work off a pre-calculated path
+	% = Send(self,@FindNextMove);
 	%if we cannot move, or at our destination
-	if i > 0
-	{
-		return $;
-	}
+	%if i > 0
+	%{
+		%return $;
+	%}
 	%sends the next "step" to caller
-	return poNextMove;
+	%return poNextMove;
+	
+	%get the last item of the plClosed list, or our first move
+	i = Nth(plClosed,Length(plClosed));
+	%remove that node from the list
+	plClosed = DelListElem(plClosed,i);
+	
+	return i;
 }
+
 
 CreateNode(iRow = 0, iCol = 0, oParent = $)
 {	
@@ -164,7 +161,7 @@ FindNextMove()
 	%%Remove it from the open list
 	if plOpen <> $
 	{
-		plOpen = DelListElem(oLowestScoreNode,plOpen);
+		plOpen = DelListElem(plOpen,oLowestScoreNode);
 	}
 	%%Add it to the closed list
 	plClosed = Cons(oLowestScoreNode,plClosed);
@@ -175,7 +172,7 @@ FindNextMove()
 		oDebugItem = Create(&PlateArmor);
 		plDebugItems = Cons(oDebugItem,plDebugItems);
 		Send(SYS,@PutInRoom,#what=oDebugItem,#rid=Send(poRoom,@GetRoomNum),#row=Send(oLowestScoreNode,@GetRow),#col=Send(oLowestScoreNode,@GetCol)); %%DEBUG
-		Debug("We have arrived at our destination");
+		%Debug("We have arrived at our destination");
 		return 1;	
 	}
 	else
