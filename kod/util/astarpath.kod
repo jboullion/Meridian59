@@ -23,6 +23,8 @@ piEndCol = 0
 poFrom = $
 poTo = $
 
+poNextMove = $
+
 plDebugItems = $
 
 messages:
@@ -33,6 +35,7 @@ Constructor(oFrom = $, oTo = $)
 	
 	plOpen = [];
 	plClosed = [];
+	plDebugItems = [];
 	poFrom = oFrom;
 	poTo = oTo;
 	
@@ -72,9 +75,13 @@ Constructed()
 		plClosed = Cons(oStartNode,plClosed);
 		Send(self,@ScanNode,#oNode=oStartNode);
 	}
+	%Uncomment To Calculate the Whole Path when created 
+	%Send(self,@CalculatePath);
 	return;
 }
 
+%Calculates the entire path
+%Used for Waypont Movement
 CalculatePath()
 {
 	local i;
@@ -88,10 +95,42 @@ CalculatePath()
 
 RecalculatePath()
 {
-	Send(self,@RemoveDebugItems); %%DEBUG
+	if plDebugItems <> $
+	{
+		Send(self,@RemoveDebugItems); %%DEBUG
+	}
 	Send(self,@Constructor,#oFrom=poFrom,#oTo=poTo);
 	Send(self,@CalculatePath);
 	return;
+}
+
+%Checks if Destination has changed before calculating the next step, if so, starts over.
+%Used for Monster movement
+CalculateStep(oTo = $)
+{
+	local i; 
+	%check if we changed targets (monsters may have a new enemy, or the ally they are seeking
+	%may have been slain, etc.
+	if oTo <> poTo
+	{
+		poTo = oTo;
+		Send(self,@Constructor,#oFrom=poFrom,#oTo=poTo);
+	}
+	%check if the target changed position since our last move
+	if Send(oTo,@GetRow) <> piEndRow or Send(oTo,@GetCol) <> piEndCol
+	{
+		Send(self,@Constructor,#oFrom=poFrom,#oTo=poTo);
+	}
+	
+	i = Send(self,@FindNextMove);
+	
+	%if we cannot move, or at our destination
+	if i > 0
+	{
+		return $;
+	}
+	%sends the next "step" to caller
+	return poNextMove;
 }
 
 CreateNode(iRow = 0, iCol = 0, oParent = $)
@@ -112,7 +151,7 @@ CreateNode(iRow = 0, iCol = 0, oParent = $)
 
 FindNextMove()
 {
-	local oLowestScoreNode;
+	local oLowestScoreNode, oDebugItem;
 	
 	%%Get the square on the open list which has the lowest score.
 	oLowestScoreNode = Send(self,@FindLowestScore);
@@ -123,24 +162,34 @@ FindNextMove()
 	}
 	
 	%%Remove it from the open list
-	plOpen = DelListElem(oLowestScoreNode,plOpen);
+	if plOpen <> $
+	{
+		plOpen = DelListElem(oLowestScoreNode,plOpen);
+	}
 	%%Add it to the closed list
 	plClosed = Cons(oLowestScoreNode,plClosed);
 	
 	%%Are we there yet?
 	if Send(oLowestScoreNode,@GetRow) = piEndRow AND Send(oLowestScoreNode,@GetCol) = piEndCol
 	{
-		Cons(Send(SYS,@PutInRoom,#classtype=&PlateArmor,#rid=Send(poRoom,@GetRoomNum),#row=Send(oLowestScoreNode,@GetRow),#col=Send(oLowestScoreNode,@GetCol)),plDebugItems); %%DEBUG
+		oDebugItem = Create(&PlateArmor);
+		plDebugItems = Cons(oDebugItem,plDebugItems);
+		Send(SYS,@PutInRoom,#what=oDebugItem,#rid=Send(poRoom,@GetRoomNum),#row=Send(oLowestScoreNode,@GetRow),#col=Send(oLowestScoreNode,@GetCol)); %%DEBUG
 		Debug("We have arrived at our destination");
 		return 1;	
 	}
 	else
 	{
-		Cons(Send(SYS,@PutInRoom,#classtype=&Apple,#rid=Send(poRoom,@GetRoomNum),#row=Send(oLowestScoreNode,@GetRow),#col=Send(oLowestScoreNode,@GetCol)),plDebugItems); %%DEBUG
+		oDebugItem = Create(&Apple);
+		plDebugItems = Cons(oDebugItem,plDebugItems);
+		Send(SYS,@PutInRoom,#what=oDebugItem,#rid=Send(poRoom,@GetRoomNum),#row=Send(oLowestScoreNode,@GetRow),#col=Send(oLowestScoreNode,@GetCol)); %%DEBUG
 	}
 	
 	%%Scan the Node
 	Send(self,@ScanNode,#oNode=oLowestScoreNode);
+	
+	%%Save it for Step-Algorithms
+	poNextMove = oLowestScoreNode;
 	
 	return 0;
 }
@@ -259,6 +308,110 @@ ScanNode(oNode = $)
 				%No? Create a new Node
 				oNewNode = Send(self,@CreateNode,#iRow=iNodeRow,#iCol=iNodeCol-1,#oParent=oNode);
 				%Debug("Can Move West 1 Row, Adding to Open list",oNewNode);
+				plOpen = Cons(oNewNode,plOpen);
+			}
+		}
+	}
+	%North-East
+	if Send(poRoom,@CanMoveInRoomProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
+		#iEndRow=iNodeRow-1,#iEndCol=iNodeCol+1)
+	{
+		oFoundNode = Send(self,@FindClosedNode,#iRow=iNodeRow-1,#iCol=iNodeCol+1);
+		if oFoundNode <> $
+		{
+			%Debug("Node in Closed List, Skipping");
+		}
+		else %And not closed
+		{	
+			%is it in the Open List?
+			oFoundNode = Send(self,@FindOpenNode,#iRow=iNodeRow-1,#iCol=iNodeCol+1);
+			if oFoundNode <> $
+			{
+				%Yes? Recalculate Heueristic
+				Send(oFoundNode,@TryNewParent,#oNode=oNode,#diagonal=TRUE);
+			}
+			else
+			{
+				%No? Create a new Node
+				oNewNode = Send(self,@CreateNode,#iRow=iNodeRow-1,#iCol=iNodeCol+1,#oParent=oNode,#diagonal=TRUE);
+				plOpen = Cons(oNewNode,plOpen);
+			}
+		}
+	}
+	%South-East
+	if Send(poRoom,@CanMoveInRoomProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
+		#iEndRow=iNodeRow+1,#iEndCol=iNodeCol+1)
+	{
+		oFoundNode = Send(self,@FindClosedNode,#iRow=iNodeRow+1,#iCol=iNodeCol+1);
+		if oFoundNode <> $
+		{
+			%Debug("Node in Closed List, Skipping");
+		}
+		else %And not closed
+		{	
+			%is it in the Open List?
+			oFoundNode = Send(self,@FindOpenNode,#iRow=iNodeRow+1,#iCol=iNodeCol+1);
+			if oFoundNode <> $
+			{
+				%Yes? Recalculate Heueristic
+				Send(oFoundNode,@TryNewParent,#oNode=oNode,#diagonal=TRUE);
+			}
+			else
+			{
+				%No? Create a new Node
+				oNewNode = Send(self,@CreateNode,#iRow=iNodeRow+1,#iCol=iNodeCol+1,#oParent=oNode,#diagonal=TRUE);
+				plOpen = Cons(oNewNode,plOpen);
+			}
+		}
+	}
+	%North-West
+	if Send(poRoom,@CanMoveInRoomProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
+		#iEndRow=iNodeRow-1,#iEndCol=iNodeCol-1)
+	{
+		oFoundNode = Send(self,@FindClosedNode,#iRow=iNodeRow-1,#iCol=iNodeCol-1);
+		if oFoundNode <> $
+		{
+			%Debug("Node in Closed List, Skipping");
+		}
+		else %And not closed
+		{	
+			%is it in the Open List?
+			oFoundNode = Send(self,@FindOpenNode,#iRow=iNodeRow-1,#iCol=iNodeCol-1);
+			if oFoundNode <> $
+			{
+				%Yes? Recalculate Heueristic
+				Send(oFoundNode,@TryNewParent,#oNode=oNode,#diagonal=TRUE);
+			}
+			else
+			{
+				%No? Create a new Node
+				oNewNode = Send(self,@CreateNode,#iRow=iNodeRow-1,#iCol=iNodeCol-1,#oParent=oNode,#diagonal=TRUE);
+				plOpen = Cons(oNewNode,plOpen);
+			}
+		}
+	}
+	%South-West
+	if Send(poRoom,@CanMoveInRoomProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
+		#iEndRow=iNodeRow+1,#iEndCol=iNodeCol-1)
+	{
+		oFoundNode = Send(self,@FindClosedNode,#iRow=iNodeRow+1,#iCol=iNodeCol-1);
+		if oFoundNode <> $
+		{
+			%Debug("Node in Closed List, Skipping");
+		}
+		else %And not closed
+		{	
+			%is it in the Open List?
+			oFoundNode = Send(self,@FindOpenNode,#iRow=iNodeRow+1,#iCol=iNodeCol-1);
+			if oFoundNode <> $
+			{
+				%Yes? Recalculate Heueristic
+				Send(oFoundNode,@TryNewParent,#oNode=oNode,#diagonal=TRUE);
+			}
+			else
+			{
+				%No? Create a new Node
+				oNewNode = Send(self,@CreateNode,#iRow=iNodeRow+1,#iCol=iNodeCol-1,#oParent=oNode,#diagonal=TRUE);
 				plOpen = Cons(oNewNode,plOpen);
 			}
 		}

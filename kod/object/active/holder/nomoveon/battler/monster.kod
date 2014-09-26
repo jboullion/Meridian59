@@ -300,6 +300,8 @@ properties:
    poCustomer = $
 
    poBrain = $
+   
+   poAstarPath = $
 
    %%% The Monster State Meta-Object
 
@@ -2042,10 +2044,12 @@ messages:
 
       return FALSE;
    }
-
+   
    MoveTowards(oTarget = $, face_target=FALSE, face_away=FALSE,
                to_master=FALSE)
    {
+      local oAstarTarget;
+	  
       if oTarget = $ 
       { 
          Debug("Bad info passed to MoveTowards!");
@@ -2056,8 +2060,29 @@ messages:
       { 
          return FALSE; 
       }
-
-      return Send(self,@MoveInDirection,#row_diff=Send(oTarget,@GetRow)-piRow,
+	  
+	  if Send(Send(sys,@GetAstar),@Enabled)
+	  {
+		
+		if poAstarPath = $
+		{
+			poAstarPath = Send(Send(sys,@GetAstar),@CreatePath,#oFrom=self,#oTo=oTarget);
+		}
+		
+		%Get our next step as the MoveInDirection target
+		oAstarTarget = Send(poAstarPath,@CalculateStep,#oTo=oTarget);
+		
+		if oAstarTarget <> $
+		{
+			return Send(self,@MoveInDirection,#row_diff=Send(oAstarTarget,@GetRow)-piRow,
+                  #col_diff=Send(oAstarTarget,@GetCol)-piCol,
+                  #face_target=face_target,#face_away=face_away,
+                  #to_master=to_master);
+		}
+				  
+	  }
+	  %else, use old movement
+	  return Send(self,@MoveInDirection,#row_diff=Send(oTarget,@GetRow)-piRow,
                   #col_diff=Send(oTarget,@GetCol)-piCol,
                   #face_target=face_target,#face_away=face_away,
                   #to_master=to_master);

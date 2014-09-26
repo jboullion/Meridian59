@@ -1,7 +1,7 @@
 AstarNode
 
 constants:
-
+	include blakston.khd
 resources:
 
 classvars:
@@ -24,12 +24,12 @@ piCol = 0
 
 messages:
 
-Constructor(iRow = 0, iCol = 0, oParent = $, iEndRow = 0, iEndCol = 0)
+Constructor(iRow = 0, iCol = 0, oParent = $, iEndRow = 0, iEndCol = 0, diagonal = FALSE)
 {
 	piRow = iRow;
 	piCol = iCol;
 	poParentNode = oParent;
-	Send(self,@CalculateMovementCost);
+	Send(self,@CalculateMovementCost,#diagonal=diagonal);
 	Send(self,@CaclculateHeuresticCost,#iEndRow=iEndRow,#iEndCol=iEndCol);
 	Send(Self,@CalculateScore);
 	return;
@@ -56,24 +56,39 @@ GetScore()
 }
 
 %"G"
-CalculateMovementCost()
+CalculateMovementCost(diagonal = FALSE)
 {
 	%If we have a parent, get its MovementCost (G)
 	if poParentNode <> $
 	{
-		piMovementCost = Send(poParentNode,@GetMovementCost) + 1;
+		if diagonal
+		{
+			piMovementCost = Send(poParentNode,@GetMovementCost) + 14;
+		}
+		else
+		{
+			piMovementCost = Send(poParentNode,@GetMovementCost) + 10;
+		}
 		return;
 	}
 	piMovementCost = 0;
 	return piMovementCost;
 }
 
-TryNewParent(oNode = $)
+TryNewParent(oNode = $, diagonal = FALSE)
 {
 	local iNewMovementCost;
 	if oNode <> $
 	{
-		iNewMovementCost = Send(oNode,@GetMovementCost) + 1;
+		if diagonal
+		{
+			iNewMovementCost = Send(oNode,@GetMovementCost) + 14;
+		}
+		else
+		{
+			iNewMovementCost = Send(oNode,@GetMovementCost) + 10;
+		}
+		
 		if iNewMovementCost < piMovementCost
 		{
 			poParentNode = oNode;
@@ -86,7 +101,7 @@ TryNewParent(oNode = $)
 
 CaclculateHeuresticCost(iEndRow = 0, iEndCol = 0)
 {
-	piHeuristicCost = abs(iEndRow - piRow) + abs(iEndCol - piCol);
+	piHeuristicCost = abs(iEndRow - piRow) * 10 + abs(iEndCol - piCol) * 10;
 	return piHeuristicCost;
 }
 
