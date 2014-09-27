@@ -2081,7 +2081,7 @@ messages:
 		}
 				  
 	  }
-	  %else, use old movement
+	  % use old movement when astar disabled or when atar cannot provide a path (oAstarTarget = $)
 	  return Send(self,@MoveInDirection,#row_diff=Send(oTarget,@GetRow)-piRow,
                   #col_diff=Send(oTarget,@GetCol)-piCol,
                   #face_target=face_target,#face_away=face_away,

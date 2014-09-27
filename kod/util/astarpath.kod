@@ -86,7 +86,9 @@ CalculatePath()
 {
 	local i;
 	i = 0;
-	while i < 1
+	%%stop calculating if we arrived at the end, or if we're calculating more than 50 steps (closed list), or
+	%%if we've got more than 50 * 8 (400) items on the open list, to prevent infinite loops
+	while i < 1 and Length(plClosed) < 50 and Length(plOpen) < 400
 	{
 		i = Send(self,@FindNextMove);
 	}
@@ -122,9 +124,16 @@ CalculateStep(oTo = $)
 	%return poNextMove;
 	
 	%get the last item of the plClosed list, or our first move
-	i = Nth(plClosed,Length(plClosed));
-	%remove that node from the list
-	plClosed = DelListElem(plClosed,i);
+	if plClosed <> $
+	{
+		i = Nth(plClosed,Length(plClosed));
+		%remove that node from the list
+		plClosed = DelListElem(plClosed,i);
+	}
+	else %we ran out of closed nodes, so the path is impossible
+	{
+		i = $;
+	}
 	
 	return i;
 }
