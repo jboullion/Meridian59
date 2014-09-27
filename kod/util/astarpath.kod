@@ -10,6 +10,7 @@ properties:
 
 plOpen = $
 plClosed = $
+plHistory = $
 
 %Room we are moving within
 poRoom = $
@@ -22,8 +23,6 @@ piEndCol = 0
 
 poFrom = $
 poTo = $
-
-poNextMove = $
 
 plDebugItems = $
 
@@ -87,8 +86,9 @@ CalculatePath()
 	local i;
 	i = 0;
 	%%stop calculating if we arrived at the end, or if we're calculating more than 50 steps (closed list), or
-	%%if we've got more than 50 * 8 (400) items on the open list, to prevent infinite loops
-	while i < 1 and Length(plClosed) < 50 and Length(plOpen) < 400
+	%%if we've got more than 50 * 8 (400) items on the open list, to prevent infinite loops on impossible
+	%%paths
+	while i < 1 and Length(plClosed) < 100 and Length(plOpen) < 800
 	{
 		i = Send(self,@FindNextMove);
 	}
@@ -113,16 +113,6 @@ CalculateStep(oTo = $)
 		Send(self,@Constructor,#oFrom=poFrom,#oTo=poTo);
 	}
 	
-	%Instead of finding the next move here, lets work off a pre-calculated path
-	% = Send(self,@FindNextMove);
-	%if we cannot move, or at our destination
-	%if i > 0
-	%{
-		%return $;
-	%}
-	%sends the next "step" to caller
-	%return poNextMove;
-	
 	%get the last item of the plClosed list, or our first move
 	if plClosed <> $
 	{
@@ -141,18 +131,18 @@ CalculateStep(oTo = $)
 
 CreateNode(iRow = 0, iCol = 0, oParent = $)
 {	
-	local oNode, i;
-	if poRoom <> $ 
+	local oNode;
+	
+	%if we've already made a node for this spot, use it
+	oNode = Send(self,@FindHistoryNode,#iRow=iRow,#iCol=iCol);
+	if oNode <> $
 	{
-		oNode = Create(&AstarNode,#iRow=iRow,#iCol=iCol,#iEndRow=piEndRow,#iEndCol=piEndCol,#oParent=oParent);
-		%Debug("CreateNode(",iRow, iCol, oParent,"): oNode",oNode);
-		if oNode <> $
-		{
-			return oNode;
-		}
-		return FALSE;
+		return oNode;
 	}
-	return FALSE;
+
+	%otherwise, make a new one!
+	return Create(&AstarNode,#iRow=iRow,#iCol=iCol,#iEndRow=piEndRow,#iEndCol=piEndCol,#oParent=oParent);
+
 }
 
 FindNextMove()
@@ -170,6 +160,7 @@ FindNextMove()
 	%%Remove it from the open list
 	if plOpen <> $
 	{
+		plHistory = Cons(plHistory,oLowestScoreNode);
 		plOpen = DelListElem(plOpen,oLowestScoreNode);
 	}
 	%%Add it to the closed list
@@ -458,6 +449,7 @@ FindLowestScore()
 		lFinal = Cons(iIndex,lFinal);
 		lNodes = DelListElem(lNodes,iIndex);
 	}
+	
 	%%The last item in the list is the lowest score.
 	oFinalNode = Nth(lFinal,Length(lFinal));
 		
@@ -488,7 +480,6 @@ FindClosedNode(iRow = 0, iCol = 0)
 	{
 		if Send(i,@GetCol) = iCol AND Send(i,@GetRow) = iRow
 		{
-			%Debug("Node exists in plClosed:",i,iRow,iCol);
 			return i;
 		}
 	}
@@ -502,7 +493,19 @@ FindOpenNode(iRow = 0, iCol = 0)
 	{
 		if Send(i,@GetCol) = iCol AND Send(i,@GetRow) = iRow
 		{
-			%Debug("Node exists in plOpen:",i,iRow,iCol);
+			return i;
+		}
+	}
+	return $;
+}
+
+FindHistoryNode(iRow = 0, iCol = 0)
+{
+	local i;
+	for i in plHistory
+	{
+		if Send(i,@GetCol) = iCol AND Send(i,@GetRow) = iRow
+		{
 			return i;
 		}
 	}
