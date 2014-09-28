@@ -50,6 +50,11 @@ GetMovementCost()
 	return piMovementCost;
 }
 
+GetHeuresticCost()
+{
+	return piHeuristicCost;
+}
+
 GetScore()
 {
 	return piScore;

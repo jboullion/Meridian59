@@ -108,6 +108,7 @@ CalculateStep(oTo = $)
 		Send(self,@Constructor,#oFrom=poFrom,#oTo=poTo);
 	}
 	%check if the target changed position since our last move
+	%TODO:should we change this to make it less sensitive to target movement to allow less repeat-pathfinding?
 	if Send(oTo,@GetRow) <> piEndRow or Send(oTo,@GetCol) <> piEndCol
 	{
 		Send(self,@Constructor,#oFrom=poFrom,#oTo=poTo);
@@ -157,10 +158,15 @@ FindNextMove()
 		return 1;
 	}
 	
+	%%why are we turning the wrong way here
+	
+	Debug("Picked Node Values:",Send(oLowestScoreNode,@GetScore),Send(oLowestScoreNode,@GetHeuresticCost),Send(oLowestScoreNode,@GetMovementCost));
+	
+	
 	%%Remove it from the open list
 	if plOpen <> $
 	{
-		plHistory = Cons(plHistory,oLowestScoreNode);
+		plHistory = Cons(oLowestScoreNode,plHistory);
 		plOpen = DelListElem(plOpen,oLowestScoreNode);
 	}
 	%%Add it to the closed list
@@ -181,12 +187,11 @@ FindNextMove()
 		plDebugItems = Cons(oDebugItem,plDebugItems);
 		Send(SYS,@PutInRoom,#what=oDebugItem,#rid=Send(poRoom,@GetRoomNum),#row=Send(oLowestScoreNode,@GetRow),#col=Send(oLowestScoreNode,@GetCol)); %%DEBUG
 	}
+
 	
 	%%Scan the Node
 	Send(self,@ScanNode,#oNode=oLowestScoreNode);
 	
-	%%Save it for Step-Algorithms
-	poNextMove = oLowestScoreNode;
 	
 	return 0;
 }
@@ -424,7 +429,7 @@ FindLowestScore()
 	lNodes = Send(SYS, @ListCopy,#source=plOpen);
 	
 	lFinal = $;
-	%%Insertion sort
+	%%Insertion sort based on score
 	while lNodes <> $
 	{
 		iLow = MAX_INT;
@@ -450,10 +455,42 @@ FindLowestScore()
 		lNodes = DelListElem(lNodes,iIndex);
 	}
 	
-	%%The last item in the list is the lowest score.
+	%%Re-sort by heurestic, so that if there is a tie on score, we pick a best guess
+	lNodes = lFinal;
+	lFinal = $;
+	while lNodes <> $
+	{
+		iLow = MAX_INT;
+		iIndex = $;
+		
+		for i in lNodes
+		{
+			if Send(i,@GetHeuresticCost) < iLow
+			{
+				iIndex = i;
+				iLow = Send(i,@GetHeuresticCost);
+			}
+		}
+		
+		if iIndex = $ OR iLow = MAX_INT
+        {
+			debug("SORT WENT WAY BAD!");
+			
+			return $;
+		}
+		
+		lFinal = Cons(iIndex,lFinal);
+		lNodes = DelListElem(lNodes,iIndex);
+	}
+	
+	
+	
+	%%The last item in the list is the lowest score, and lowest heurestic.
 	oFinalNode = Nth(lFinal,Length(lFinal));
 		
 	return oFinalNode;
+	
+	
 }
 
 RemoveDebugItems()
