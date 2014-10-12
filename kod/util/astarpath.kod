@@ -6,11 +6,17 @@ resources:
 
 classvars:
 
+%%This classvar will set the maximum number of steps allowed in path calculation
+viMaxStepCalc = 150
+
+vbDebugItems = FALSE
+
 properties:
 
 plOpen = $
 plClosed = $
 plHistory = $
+plPath = $
 
 %Room we are moving within
 poRoom = $
@@ -20,6 +26,9 @@ piStartCol = 0
 
 piEndRow = 0
 piEndCol = 0
+
+poStartNode = $
+poEndNode = $
 
 poFrom = $
 poTo = $
@@ -34,6 +43,9 @@ Constructor(oFrom = $, oTo = $)
 	
 	plOpen = [];
 	plClosed = [];
+	plPath = [];
+	poStartNode = $;
+	poEndNode = $;
 	
 	poFrom = oFrom;
 	poTo = oTo;
@@ -44,7 +56,10 @@ Constructor(oFrom = $, oTo = $)
 	piEndRow = (Send(oTo,@GetRow));
 	piEndCol = (Send(oTo,@GetCol));
 	
-	Send(self,@RemoveDebugItems);
+	if vbDebugItems
+	{
+		Send(self,@RemoveDebugItems);
+	}
 	
 	Send(self,@Constructed);
 	return;
@@ -67,15 +82,14 @@ Recreate()
 
 Constructed()
 {
-	local oStartNode;
 	%%creates the starting position node
-	oStartNode = Send(self,@CreateNode,#iRow=piStartRow,#iCol=piStartCol);
-	%Debug ("oStartNode",oStartNode);
-	if oStartNode <> $
+	poStartNode = Send(self,@CreateNode,#iRow=piStartRow,#iCol=piStartCol);
+
+	if poStartNode <> $
 	{
-		Send(self,@ScanNode,#oNode=oStartNode);
+		Send(self,@ScanNode,#oNode=poStartNode);
 	}
-	%Uncomment To Calculate the Whole Path when created 
+	
 	Send(self,@CalculatePath);
 	return;
 }
@@ -83,15 +97,35 @@ Constructed()
 %Calculates the entire path
 CalculatePath()
 {
-	local i;
+	local i, oNextNode,oDebugItem;
 	i = 0;
-	%%stop calculating if we arrived at the end, or if we're calculating more than 50 steps (closed list), or
-	%%if we've got more than 50 * 8 (400) items on the open list, to prevent infinite loops on impossible
+	%%stop calculating if we arrived at the end, or if we're calculating more than viMaxStepCalc steps (closed list), or
+	%%if we've got more than viMaxStepCalc * 8 items on the open list, to prevent infinite loops on impossible
 	%%paths
-	while i < 1 and Length(plClosed) < 100 and Length(plOpen) < 800
+	while i < 1 and Length(plClosed) < viMaxStepCalc and Length(plOpen) < viMaxStepCalc * 8
 	{
 		i = Send(self,@FindNextMove);
 	}
+	
+	oNextNode = poEndNode;
+	
+	while oNextNode <> $
+	{
+		%create our path in plPath
+		plPath = Cons(oNextNode,plPath);
+		if vbDebugItems
+		{
+			oDebugItem = Create(&Apple);
+			plDebugItems = Cons(oDebugItem,plDebugItems);
+			Send(SYS,@PutInRoom,#what=oDebugItem,#rid=Send(poRoom,@GetRoomNum),#row=Send(oNextNode,@GetRow),#col=Send(oNextNode,@GetCol)); %%DEBUG
+		}
+		
+		oNextNode = Send(oNextNode,@GetParent);
+		
+	}
+	
+	%remove the starting location from the path, as moving from and to the same row/col makes monsters move backwards
+	plPath = DelListElem(plPath,First(plPath));
 	return;
 }
 
@@ -114,14 +148,14 @@ CalculateStep(oTo = $)
 		Send(self,@Constructor,#oFrom=poFrom,#oTo=poTo);
 	}
 	
-	%get the last item of the plClosed list, or our first move
-	if plClosed <> $
+	%get the last item of the plPath list, or our first move
+	if plPath <> $
 	{
-		i = Nth(plClosed,Length(plClosed));
+		i = First(plPath);
 		%remove that node from the list
-		plClosed = DelListElem(plClosed,i);
+		plPath = DelListElem(plPath,i);
 	}
-	else %we ran out of closed nodes, so the path is impossible
+	else %path not viable, or some other reason to move with the old system
 	{
 		i = $;
 	}
@@ -130,19 +164,11 @@ CalculateStep(oTo = $)
 }
 
 
-CreateNode(iRow = 0, iCol = 0, oParent = $)
+CreateNode(iRow = 0, iCol = 0, oParent = $, diagonal = FALSE)
 {	
 	local oNode;
-	
-	%if we've already made a node for this spot, use it
-	oNode = Send(self,@FindHistoryNode,#iRow=iRow,#iCol=iCol);
-	if oNode <> $
-	{
-		return oNode;
-	}
 
-	%otherwise, make a new one!
-	return Create(&AstarNode,#iRow=iRow,#iCol=iCol,#iEndRow=piEndRow,#iEndCol=piEndCol,#oParent=oParent);
+	return Create(&AstarNode,#iRow=iRow,#iCol=iCol,#iEndRow=piEndRow,#iEndCol=piEndCol,#oParent=oParent,#diagonal=diagonal);
 
 }
 
@@ -154,40 +180,25 @@ FindNextMove()
 	oLowestScoreNode = Send(self,@FindLowestScore);
 	if oLowestScoreNode = $
 	{
-		Debug("Lowest Node has 0 value, impossible movement");
 		return 1;
 	}
-	
-	%%why are we turning the wrong way here
-	
-	Debug("Picked Node Values:",Send(oLowestScoreNode,@GetScore),Send(oLowestScoreNode,@GetHeuresticCost),Send(oLowestScoreNode,@GetMovementCost));
-	
-	
+
 	%%Remove it from the open list
 	if plOpen <> $
 	{
-		plHistory = Cons(oLowestScoreNode,plHistory);
+		%plHistory = Cons(oLowestScoreNode,plHistory);
 		plOpen = DelListElem(plOpen,oLowestScoreNode);
 	}
+	
 	%%Add it to the closed list
 	plClosed = Cons(oLowestScoreNode,plClosed);
 	
 	%%Are we there yet?
 	if Send(oLowestScoreNode,@GetRow) = piEndRow AND Send(oLowestScoreNode,@GetCol) = piEndCol
 	{
-		oDebugItem = Create(&PlateArmor);
-		plDebugItems = Cons(oDebugItem,plDebugItems);
-		Send(SYS,@PutInRoom,#what=oDebugItem,#rid=Send(poRoom,@GetRoomNum),#row=Send(oLowestScoreNode,@GetRow),#col=Send(oLowestScoreNode,@GetCol)); %%DEBUG
-		%Debug("We have arrived at our destination");
+		poEndNode = oLowestScoreNode;
 		return 1;	
 	}
-	else
-	{
-		oDebugItem = Create(&Apple);
-		plDebugItems = Cons(oDebugItem,plDebugItems);
-		Send(SYS,@PutInRoom,#what=oDebugItem,#rid=Send(poRoom,@GetRoomNum),#row=Send(oLowestScoreNode,@GetRow),#col=Send(oLowestScoreNode,@GetCol)); %%DEBUG
-	}
-
 	
 	%%Scan the Node
 	Send(self,@ScanNode,#oNode=oLowestScoreNode);
@@ -210,7 +221,7 @@ ScanNode(oNode = $)
 		oFoundNode = Send(self,@FindClosedNode,#iRow=iNodeRow+1,#iCol=iNodeCol);
 		if oFoundNode <> $
 		{
-			%Debug("Node in Closed List, Skipping");
+
 		}
 		else %And not closed
 		{	
@@ -220,12 +231,12 @@ ScanNode(oNode = $)
 			{
 				%Yes? Recalculate Heueristic
 				Send(oFoundNode,@TryNewParent,#oNode=oNode);
+				
 			}
 			else
 			{
 				%No? Create a new Node
 				oNewNode = Send(self,@CreateNode,#iRow=iNodeRow+1,#iCol=iNodeCol,#oParent=oNode);
-				%Debug("Can Move South 1 Row, Adding to Open list",oNewNode);
 				plOpen = Cons(oNewNode,plOpen);
 			}
 		}
@@ -238,7 +249,7 @@ ScanNode(oNode = $)
 		oFoundNode = Send(self,@FindClosedNode,#iRow=iNodeRow-1,#iCol=iNodeCol);
 		if oFoundNode <> $
 		{
-			%Debug("Node in Closed List, Skipping");
+
 		}
 		else
 		{
@@ -253,7 +264,6 @@ ScanNode(oNode = $)
 			{
 				%No? Create a new Node
 				oNewNode = Send(self,@CreateNode,#iRow=iNodeRow-1,#iCol=iNodeCol,#oParent=oNode);
-				%Debug("Can Move North 1 Row, Adding to Open list",oNewNode);
 				plOpen = Cons(oNewNode,plOpen);
 			}
 		}
@@ -266,7 +276,7 @@ ScanNode(oNode = $)
 		oFoundNode = Send(self,@FindClosedNode,#iRow=iNodeRow,#iCol=iNodeCol+1);
 		if oFoundNode <> $
 		{
-			%Debug("Node in Closed List, Skipping");
+
 		}
 		else
 		{	
@@ -281,7 +291,6 @@ ScanNode(oNode = $)
 			{
 				%No? Create a new Node
 				oNewNode = Send(self,@CreateNode,#iRow=iNodeRow,#iCol=iNodeCol+1,#oParent=oNode);
-				%Debug("Can Move East 1 Row, Adding to Open list",oNewNode);
 				plOpen = Cons(oNewNode,plOpen);
 			}
 		}
@@ -294,7 +303,7 @@ ScanNode(oNode = $)
 		oFoundNode = Send(self,@FindClosedNode,#iRow=iNodeRow,#iCol=iNodeCol-1);
 		if oFoundNode <> $
 		{
-			%Debug("Node in Closed List, Skipping");
+
 		}
 		else
 		{
@@ -309,7 +318,6 @@ ScanNode(oNode = $)
 			{
 				%No? Create a new Node
 				oNewNode = Send(self,@CreateNode,#iRow=iNodeRow,#iCol=iNodeCol-1,#oParent=oNode);
-				%Debug("Can Move West 1 Row, Adding to Open list",oNewNode);
 				plOpen = Cons(oNewNode,plOpen);
 			}
 		}
@@ -321,7 +329,7 @@ ScanNode(oNode = $)
 		oFoundNode = Send(self,@FindClosedNode,#iRow=iNodeRow-1,#iCol=iNodeCol+1);
 		if oFoundNode <> $
 		{
-			%Debug("Node in Closed List, Skipping");
+		
 		}
 		else %And not closed
 		{	
@@ -347,7 +355,7 @@ ScanNode(oNode = $)
 		oFoundNode = Send(self,@FindClosedNode,#iRow=iNodeRow+1,#iCol=iNodeCol+1);
 		if oFoundNode <> $
 		{
-			%Debug("Node in Closed List, Skipping");
+		
 		}
 		else %And not closed
 		{	
@@ -373,7 +381,7 @@ ScanNode(oNode = $)
 		oFoundNode = Send(self,@FindClosedNode,#iRow=iNodeRow-1,#iCol=iNodeCol-1);
 		if oFoundNode <> $
 		{
-			%Debug("Node in Closed List, Skipping");
+
 		}
 		else %And not closed
 		{	
@@ -399,7 +407,7 @@ ScanNode(oNode = $)
 		oFoundNode = Send(self,@FindClosedNode,#iRow=iNodeRow+1,#iCol=iNodeCol-1);
 		if oFoundNode <> $
 		{
-			%Debug("Node in Closed List, Skipping");
+
 		}
 		else %And not closed
 		{	
@@ -446,7 +454,6 @@ FindLowestScore()
 		
 		if iIndex = $ OR iLow = MAX_INT
         {
-			debug("SORT WENT WAY BAD!");
 			
 			return $;
 		}
@@ -455,33 +462,7 @@ FindLowestScore()
 		lNodes = DelListElem(lNodes,iIndex);
 	}
 	
-	%%Re-sort by heurestic, so that if there is a tie on score, we pick a best guess
-	lNodes = lFinal;
-	lFinal = $;
-	while lNodes <> $
-	{
-		iLow = MAX_INT;
-		iIndex = $;
-		
-		for i in lNodes
-		{
-			if Send(i,@GetHeuresticCost) < iLow
-			{
-				iIndex = i;
-				iLow = Send(i,@GetHeuresticCost);
-			}
-		}
-		
-		if iIndex = $ OR iLow = MAX_INT
-        {
-			debug("SORT WENT WAY BAD!");
-			
-			return $;
-		}
-		
-		lFinal = Cons(iIndex,lFinal);
-		lNodes = DelListElem(lNodes,iIndex);
-	}
+	
 	
 	
 	
@@ -500,6 +481,7 @@ RemoveDebugItems()
 	{
 		Send(i,@Delete);
 	}
+	plDebugItems = $;
 	return;
 }
 

@@ -2072,6 +2072,7 @@ messages:
 		%Get our next step as the MoveInDirection target
 		oAstarTarget = Send(poAstarPath,@CalculateStep,#oTo=oTarget);
 		
+		
 		if oAstarTarget <> $
 		{
 			return Send(self,@MoveInDirection,#row_diff=Send(oAstarTarget,@GetRow)-piRow,
@@ -2081,7 +2082,7 @@ messages:
 		}
 				  
 	  }
-	  % use old movement when astar disabled or when atar cannot provide a path (oAstarTarget = $)
+	  % use old movement when astar disabled or when atar cannot provide a path or when moving around next to an enemy
 	  return Send(self,@MoveInDirection,#row_diff=Send(oTarget,@GetRow)-piRow,
                   #col_diff=Send(oTarget,@GetCol)-piCol,
                   #face_target=face_target,#face_away=face_away,

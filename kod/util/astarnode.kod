@@ -60,6 +60,11 @@ GetScore()
 	return piScore;
 }
 
+GetParent()
+{
+	return poParentNode;
+}
+
 %"G"
 CalculateMovementCost(diagonal = FALSE)
 {
