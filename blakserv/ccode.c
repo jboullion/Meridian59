@@ -2509,3 +2509,36 @@ int C_RecordStat(int object_id,local_var_type *local_vars,
 	}
 	return NIL;
 }
+
+int C_CreatePath(int object_id,local_var_type *local_vars,
+				int num_normal_parms,parm_node normal_parm_array[],
+				int num_name_parms,parm_node name_parm_array[])
+{
+	val_type object_val;
+	object_node *oFrom, *oTo;
+	
+	object_val = RetrieveValue(object_id,local_vars,normal_parm_array[0].type,
+		normal_parm_array[0].value);
+	if (object_val.v.tag != TAG_OBJECT)
+	{
+		bprintf("C_CreatePath can't create path from non-object %i,%i\n",object_val.v.tag,object_val.v.data);
+		return NIL;
+	}
+	oFrom = GetObjectByID(object_val.v.data);
+
+	object_val = RetrieveValue(object_id,local_vars,normal_parm_array[1].type,
+		normal_parm_array[1].value);
+	if (object_val.v.tag != TAG_OBJECT)
+	{
+		bprintf("C_CreatePath can't create path to non-object %i,%i\n",object_val.v.tag,object_val.v.data);
+		return NIL;
+	}
+	oTo = GetObjectByID(object_val.v.data);
+
+	CreatePath(oFrom,oTo);
+
+	//Param 0 == from objcet
+	//Param 1 == to object
+	//Call CreatePath(from object, to object) 
+	return NIL;
+}

@@ -66,6 +66,7 @@ CreatePath(oFrom = $, oTo  = $, oTestRoom = $)
 	}
 
 	%create the path object, which will start calculating things and add it to our list.
+	%%TODO: Call C_CreatePath() WARNING NOT IMPLEMENTED
 	oPath = Create(&AstarPath,#oFrom=oFrom,#oTo=oTo);
 	plAstarPaths = Cons(oPath,plAstarPaths);
 	
