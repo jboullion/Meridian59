@@ -1773,25 +1773,33 @@ messages:
 
       if iClient_cmd = UC_CLAIM_SHIELD
       {
+         % Check if they have a guild.
+         if poGuild = $
+         {
+            return;
+         }
+
          % Find the guild from the color info.
          oGuild = Send(SYS,@FindGuildByShield,
-                       #color1=Nth(client_msg,2),
-                       #color2=Nth(client_msg,3),
-                       #shape=Nth(client_msg,4));
-                       
-         if oGuild = $ and Nth(client_msg,5) <> FALSE
+                        #color1=Nth(client_msg,2),
+                        #color2=Nth(client_msg,3),
+                        #shape=Nth(client_msg,4));
+
+         if oGuild = $
+            AND Nth(client_msg,5) <> FALSE
+            AND Send(poGuild,@GetRank,#who=self) = RANK_MASTER
          {
             Send(poGuild,@SetGuildColors,
-                 #color1=Nth(client_msg,2),
-                 #color2=Nth(client_msg,3),
-                 #shape=Nth(client_msg,4));
+                  #color1=Nth(client_msg,2),
+                  #color2=Nth(client_msg,3),
+                  #shape=Nth(client_msg,4));
          }
-         
+
          Send(self,@UserGuildSendShieldInfo,#oguild=oGuild,
-              #color1=Nth(client_msg,2),
-              #color2=Nth(client_msg,3),
-              #shape=Nth(client_msg,4));
-              
+               #color1=Nth(client_msg,2),
+               #color2=Nth(client_msg,3),
+               #shape=Nth(client_msg,4));
+
          return;
       }
 
@@ -2058,28 +2066,38 @@ messages:
    {
       local lSamples,i;
 
-      if pbLogged_on
+      % Only do this if the user is guilded.
+      if poGuild <> $
       {
-         AddPacket(1,BP_USERCOMMAND,1,UC_GUILD_SHIELDS);
-
-         lSamples = Send(SYS,@GetGuildShieldSamples);
-         AddPacket(2,length(lSamples));
-         for i in lSamples
+         if pbLogged_on
          {
-            AddPacket(4,i);
-         }
+            AddPacket(1,BP_USERCOMMAND,1,UC_GUILD_SHIELDS);
 
-         SendPacket(poSession);
+            lSamples = Send(SYS,@GetGuildShieldSamples);
+            AddPacket(2,length(lSamples));
+            for i in lSamples
+            {
+               AddPacket(4,i);
+            }
+
+            SendPacket(poSession);
+         }
       }
 
       return;
    }
 
-   UserGuildSendShieldInfo(oguild = $, color1 = $, color2 = $, shape = $)
+   UserGuildSendShieldInfo(oguild=$,color1=$,color2=$,shape=$)
    {
       local owner;
 
       owner = oguild;
+
+      % If the user isn't guilded, don't show them this info.
+      if poGuild = $
+      {
+         return;
+      }
 
       if (oGuild = $) or (not IsClass(oGuild,&Guild))
       {
@@ -2105,11 +2123,11 @@ messages:
          else
          {
             % Unclaimed guild Sends 0 for guild id but MY guild's name to
-            %  fulfil protocol
+            % fulfil protocol
             AddPacket(4,0);
             AddPacket(6,Send(oGuild,@GetName));
          }
-         
+
          AddPacket(1,color1,1,color2,1,shape);
 
          SendPacket(poSession);
@@ -2250,7 +2268,7 @@ messages:
       
          if iRoom >= RID_NEWB_BASE and iRoom <= RID_NEWB_MAX
          {
-            Send(self,@TeleportTo,#RID=RID_NEWB1);
+            Send(self,@TeleportTo,#RID=RID_NEWB1,#bAdminPort=FALSE);
          }
          else
          {
@@ -2326,8 +2344,8 @@ messages:
          AND (iFlags & DRAWFX_MASK) = DRAWFX_INVISIBLE
       {
          iFlags = (iFlags & (~DRAWFX_MASK));
-         iFlags = (iFlags & (~OF_FLICKERING));
-         iFlags = (iFlags | OF_FLASHING);
+         iFlags = (iFlags & (~FLICKERING_YES));
+         iFlags = (iFlags | FLASHING_YES);
       }
 
       if IsClass(what,&Battler)
@@ -2341,8 +2359,8 @@ messages:
             AND (IsClass(what,&Player)
                  OR (IsClass(what,&Monster) AND abs(iEnemyKarma) > iSelfKarma))
          {
-            iFlags = (iFlags & (~OF_FLICKERING));
-            iFlags = (iFlags | OF_FLASHING);
+            iFlags = (iFlags & (~FLICKERING_YES));
+            iFlags = (iFlags | FLASHING_YES);
          }
 
          if Send(self,@CheckPlayerFlag,#flag=PFLAG2_DETECT_GOOD,#flagset=2)
@@ -2351,8 +2369,8 @@ messages:
             AND (IsClass(what,&Player)
                  OR (IsClass(what,&Monster) AND iEnemyKarma > abs(iSelfKarma)))
          {
-            iFlags = (iFlags & (~OF_FLICKERING));
-            iFlags = (iFlags | OF_FLASHING);
+            iFlags = (iFlags & (~FLICKERING_YES));
+            iFlags = (iFlags | FLASHING_YES);
          }
 
          if IsClass(what,&Player)
@@ -3128,7 +3146,9 @@ messages:
          {
             % Log it
             Debug("ALERT!",Send(self,@GetTrueName),self,
-               "tried to move through closed cave entrance.");
+               "tried to move through closed cave entrance, from ",
+               iRow,iCol,iFineRow,iFineCol," to ",new_row,new_col,
+               fine_row,fine_col,".");
 
             % Reset position
             Send(SYS,@UtilGoNearSquare,#what=self,#where=poOwner,
@@ -4420,6 +4440,16 @@ messages:
 
       if pbLogged_on
       {
+         if what <> $
+            AND NOT IsObject(what)
+         {
+            % Log a debug message for this
+            Debug("User ",self," tried to look at non-object ",
+                  what);
+
+            return;
+         }
+
          if IsClass(what,&ReagentBag)
             AND Send(what,@GetReagentBagContents) <> $
          {
@@ -4863,49 +4893,6 @@ messages:
       return;
    }
 
-   % Can the user have controllable units
-   CanUserHaveMinions(who = $)
-   {
-      return TRUE;
-   }
-
-  CommandMinionAttack(oMaster=$,oTarget=$)
-   {
-      local oActive;
-
-      % We only want minions to attack Battlers, not items or anything
-      % else that can damage us.
-      if oTarget = $
-         OR NOT IsClass(oTarget,&Battler)
-      {
-         return;
-      }
-
-      if Send(self,@AllowPlayerAttack,#victim=oTarget)
-      {
-         for oActive in Send(self,@GetControlledMinions)
-         {
-            if IsClass(oActive,&Monster)
-            {
-               if Send(oActive,@GetMaster) = self
-               {
-                  if Send(oActive,@GetTarget) <> oTarget
-                  {
-                     Send(oActive,@SetBehaviorFlag,
-                           #flag=AI_MOVE_FOLLOW_MASTER,#value=FALSE);
-                     Send(oActive,@TargetSwitch,#what=oTarget,
-                           #iHatred=100);
-                     Send(oActive,@EnterStateChase,#target=oTarget,
-                           #actnow=TRUE);
-                  }
-               }
-            }
-         }
-      }
-
-      return;
-   }
-
    UserAttack(type=STROKE_NORMAL,what=$)
    {
       local i, use_weapon, stroke_id, stroke_obj, is_spell;
@@ -5006,12 +4993,10 @@ messages:
       local i, bFound, iSpell, iSpellNum, iSpellPower, lFinalTargets;
 
       % Command minions to aid in combat
-      if IsClass(oSpell,&AttackSpell)
+      if lTargets <> $
+         AND IsClass(oSpell,&AttackSpell)
       {
-         if length(Send(self,@GetControlledMinions)) > 0
-         {
-            Send(self,@CommandMinionAttack,#oMaster=self,#oTarget=First(lTargets));
-         }
+         Send(self,@CommandMinionAttack,#oMaster=self,#oTarget=First(lTargets));
       }
 
       % User took an action!  Wake any AIs in the room to the user's presence!
@@ -7801,10 +7786,10 @@ messages:
          Send(self,@MsgSendUser,#message_rsc=user_goto_jail);
          return Send(SYS,@GetSuccessRsc);
       }
-      
+
       return;
    }
-   
+
    AdminGoToLastSafeRoom()
    "Admin supported\n"
    "Sends the user to the last safe room they visited, whether they're logged in or not!\n"
@@ -7815,12 +7800,12 @@ messages:
       {
          oLastSafeRoom = Send(SYS,@FindRoomByNum,#num=piLastSafeRoom);
          iLastSafeRegion = Send(oLastSafeRoom,@GetRegion);
-         
+
          if pbLogged_on
          {
             oCurrentRoom = Send(self,@GetOwner);
             iCurrentRegion = Send(oCurrentRoom,@GetRegion);
-            
+
             if iCurrentRegion = iLastSafeRegion
             {
                Send(oLastSafeRoom,@Teleport,#what=self);
@@ -7855,7 +7840,7 @@ messages:
             else
             {
                oTargetRoom = send(SYS,@FindRoomByNum,#num=Send(oCurrentRoom,@GetCurrentRegionHomeroom));
-               
+
                piSave_room = Send(oTargetRoom,@GetRoomNum);
                piSave_row = Send(oTargetRoom,@GetTeleportRow);
                piSave_col = Send(oTargetRoom,@GetTeleportCol);
@@ -7864,6 +7849,7 @@ messages:
             }
          }
       }
+
       return;
    }
 
@@ -7879,7 +7865,7 @@ messages:
       {
          oRoom = Send(SYS,@FindRoomByNum,#num=abs(piHomeroom));
       }
-      
+
       if oRoom = $ OR piHomeroom = $ OR NOT Send(oRoom,@IsHometown)
       {
          Send(self,@SetRandomHomeroom);
@@ -7922,13 +7908,13 @@ messages:
                AND (Send(oGhost,@GetGhostedPlayer) = self)
             {
                Send(oRoom,@NewHold,#what=oGhost,
-                    #new_row=Send(oRoom,@GetTeleportRow),
-                    #new_col=Send(oRoom,@GetTeleportCol),
-                    #fine_row=0,#fine_col=0,
-                    #new_angle=Send(oRoom,@GetTeleportAngle));
+                     #new_row=Send(oRoom,@GetTeleportRow),
+                     #new_col=Send(oRoom,@GetTeleportCol),
+                     #fine_row=0,#fine_col=0,
+                     #new_angle=Send(oRoom,@GetTeleportAngle));
             }
          }
-         
+
          piSave_Room = RID_OOG;
          piSave_row = Send(oRoom,@GetTeleportRow);
          piSave_col = Send(oRoom,@GetTeleportCol);
@@ -7940,10 +7926,9 @@ messages:
             piSave_angle = ANGLE_SOUTH;
          }
       }
-      
+
       return TRUE;
    }
-   
 
    TeleportToInitialLocation()
    "Assertion:  you are NOT logged on"
@@ -7955,15 +7940,15 @@ messages:
       if oRoom = $
       {
          Debug("There is no initial room!");
-         
+
          return;
       }
 
       % we're NOT logged on
 
       piSave_room = Send(oRoom,@GetRoomNum);
-      piSave_row = Send(oRoom,@getteleportrow);
-      piSave_col = Send(oRoom,@getteleportcol);
+      piSave_row = Send(oRoom,@GetTeleportRow);
+      piSave_col = Send(oRoom,@GetTeleportCol);
       piSave_fine_row = 0;
       piSave_fine_col = 0;
       piSave_angle = Send(oRoom,@GetTeleportAngle);
@@ -7971,7 +7956,7 @@ messages:
       {
          piSave_angle = ANGLE_SOUTH;
       }
-      
+
       return;
    }
 
@@ -7980,14 +7965,14 @@ messages:
       return RID_NEWB1;
    }
 
-   TeleportTo(RID = RID_TOS,foyer=TRUE)
+   TeleportTo(RID = RID_TOS,foyer=TRUE,bAdminPort=TRUE)
    "Admin supported."
    "This will teleport the target person to the target room, by RID."
    {
       local oRoom;
-      
+
       oRoom = Send(SYS,@FindRoombyNum,#num=RID);
-      if oRoom = $     
+      if oRoom = $
       {
          % If FindRoomByNum returns nothing - bad RID
          return FALSE;
@@ -7998,9 +7983,16 @@ messages:
          % If they're not logged in, don't teleport 'em
          return FALSE;
       }
-      
+
       Send(oRoom,@Teleport,#what=self,#foyer=foyer);
-      
+
+      if bAdminPort
+      {
+         % Log the teleport.
+         GodLog("Admin ",Send(self,@GetTrueName)," teleported to ",
+               Send(oRoom,@GetName));
+      }
+
       return TRUE;
    }
 
@@ -8079,9 +8071,20 @@ messages:
          }
 
          Send(self,@MsgSendUser,#message_rsc=user_goto_object,
-              #parm1=logged_off,#parm2=Send(what,@GetName));
+               #parm1=logged_off,#parm2=Send(what,@GetName));
       }
-      
+
+      if IsClass(self,&DM)
+      {
+         GodLog("Admin ",Send(self,@GetTrueName)," teleported to object ",
+               Send(what,@GetTrueName)," in room ",Send(oNew_room,@GetName));
+      }
+      else
+      {
+         GodLog(Send(self,@GetTrueName)," was teleported to object ",
+            Send(what,@GetTrueName)," in room ",Send(oNew_room,@GetName));
+      }
+
       return ret_val;
    }
 
@@ -8152,7 +8155,6 @@ messages:
 
       iFlags = iFlags | (piDrawfx & DRAWFX_MASK)
                | (piDrawfx & (FLASHING_YES | FLICKERING_YES | PHASING_YES));
-      iFlags = (iFlags & (~FALSEPLAYER_YES));
 
       oIllusion = Send(self,@GetIllusionForm);
 

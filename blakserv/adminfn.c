@@ -2000,7 +2000,6 @@ void AdminShowEachSysTimer(systimer_node *st)
 	case SYST_INTERFACE_UPDATE : s = "Update interface"; break;
 	case SYST_RESET_TRANSMITTED : s = "Reset TX count"; break;
 	case SYST_RESET_POOL : s = "Reset buffer pool"; break;
-	case SYST_MYSQL_CONNECT : s = "Check MySQL conn"; break;
 	default : s = "Unknown"; break;
 	}
 	aprintf("%i %-18s %-15s ",st->systimer_type,s,RelativeTimeStr(st->period));
@@ -2105,6 +2104,7 @@ void AdminShowCalls(int session_id,admin_parm_type parms[],
 		case RECYCLEUSER : strcpy(c_name, "RecycleUser"); break;
 		case RANDOM : strcpy(c_name, "Random"); break;
 		case CREATEPATH : strcpy(c_name, "CreatePath"); break;
+		case RECORDSTAT : strcpy(c_name, "RecordStat"); break;
 			
 		default : 
 			sprintf(c_name,"Unknown (%i)",max_index);
