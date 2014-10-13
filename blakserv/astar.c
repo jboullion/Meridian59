@@ -16,6 +16,35 @@
 
 #include "blakserv.h"
 
+/***********************Start: Node Calculations***********************/
+void CalculateMovementCost(astar_node * node, astarpath * path, bool diagonal)
+{
+	if (!node->parent) //if we have a parent
+	{
+		if (diagonal)
+			node->movement_cost = node->parent->movement_cost + 14;
+		else
+			node->movement_cost = node->parent->movement_cost + 10;
+	}
+	else
+	{
+		node->movement_cost = 0;
+	}
+}
+
+void CalculateHeuristic(astar_node * node, astarpath * path)
+{
+	node->heuristic_cost = (abs(path->endrow - node->row) * 10) + (abs(path->endcol - node->col));
+}
+
+void CalculateScore(astar_node * node, astarpath * path, bool diagonal)
+{
+	CalculateMovementCost(node,path,diagonal);
+	CalculateHeuristic(node,path);
+	node->score = node->movement_cost + node->heuristic_cost;
+}
+/**********************************************/
+
 //Takes two objects, from and to (origin and target)
 void CreatePath(object_node * oFrom, object_node * oTo)
 {
@@ -54,7 +83,7 @@ void CreatePath(object_node * oFrom, object_node * oTo)
 	startnode = (astar_node *)AllocateMemory(MALLOC_ID_ASTAR,sizeof(astar_node));
 	startnode->row = path->startrow;
 	startnode->col = path->startcol;
-	CalculateScore(startnode,path);
+	CalculateScore(startnode,path,false);
 	
 	//Scan the node
 }
@@ -68,31 +97,3 @@ void ScanNode(astar_node *node, astarpath * path)
 }
 
 
-/***********************Start: Node Calculations***********************/
-void CalculateMovementCost(astar_node * node, astarpath * path, bool diagonal)
-{
-	if (!node->parent) //if we have a parent
-	{
-		if (diagonal)
-			node->movement_cost = node->parent->movement_cost + 14;
-		else
-			node->movement_cost = node->parent->movement_cost + 10;
-	}
-	else
-	{
-		node->movement_cost = 0;
-	}
-}
-
-void CalculateHeuristic(astar_node * node, astarpath * path)
-{
-	node->heuristic_cost = (abs(path->endrow - node->row) * 10) + (abs(path->endcol - node->col));
-}
-
-void CalculateScore(astar_node * node, astarpath * path, bool diagonal)
-{
-	CalculateMovementCost(node,path,diagonal);
-	CalculateHeuristic(node,path);
-	node->score = node->movement_cost + node->heuristic_cost;
-}
-/**********************************************/
