@@ -17,7 +17,7 @@
 #include "blakserv.h"
 
 /***********************Start: Node Calculations***********************/
-void CalculateMovementCost(astar_node * node, astarpath * path, bool diagonal)
+void CalculateMovementCost(astar_node * node, astar_path * path, bool diagonal)
 {
 	if (node->parent) //if we have a parent
 	{
@@ -32,12 +32,12 @@ void CalculateMovementCost(astar_node * node, astarpath * path, bool diagonal)
 	}
 }
 
-void CalculateHeuristic(astar_node * node, astarpath * path)
+void CalculateHeuristic(astar_node * node, astar_path * path)
 {
 	node->heuristic_cost = (abs(path->endrow - node->row) * 10) + (abs(path->endcol - node->col));
 }
 
-void CalculateScore(astar_node * node, astarpath * path, bool diagonal)
+void CalculateScore(astar_node * node, astar_path * path, bool diagonal)
 {
 	CalculateMovementCost(node,path,diagonal);
 	CalculateHeuristic(node,path);
@@ -49,12 +49,12 @@ void CalculateScore(astar_node * node, astarpath * path, bool diagonal)
 void CreatePath(object_node * oFrom, object_node * oTo)
 {
 	astar_node *startnode;
-	astarpath *path;
+	astar_path *path;
 	class_node *c;
 	message_node *m;
 	//message_node * GetCol;
 
-	path = (astarpath *)AllocateMemory(MALLOC_ID_ASTAR,sizeof(astarpath));
+	path = (astar_path *)AllocateMemory(MALLOC_ID_ASTAR,sizeof(astar_path));
 	path->origin = oFrom;
 	path->target = oTo;
 	
@@ -84,7 +84,7 @@ void CreatePath(object_node * oFrom, object_node * oTo)
 	//Scan the node
 }
 
-void ScanNode(astar_node *node, astarpath * path)
+void ScanNode(astar_node *node, astar_path * path)
 {
 	for (int xoff = -1; xoff < 2; xoff++) //loop -1, 0, +1
 		for (int yoff = -1; yoff < 2; yoff++) //loop -1, 0, +1

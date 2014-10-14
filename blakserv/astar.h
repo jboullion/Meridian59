@@ -46,7 +46,7 @@ typedef struct astarpath_struct
 	int numopen; //how many we have
 	astar_node *open[ASTAR_LIST_SIZE]; //array of open
 
-} astarpath;
+} astar_path;
 
 void CreatePath(object_node * oFrom, object_node * oTo);
 
