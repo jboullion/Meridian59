@@ -12,6 +12,9 @@
 #ifndef _ASTAR_H
 #define _ASTAR_H
 
+#define ASTAR_GRID_SIZE 128
+#define ASTAR_LIST_SIZE 128
+
 typedef struct astarnode_struct
 {
 	int row, col;
@@ -35,8 +38,13 @@ typedef struct astarpath_struct
 	object_node *origin;
 	object_node *target;
 
-	astar_node *closed;
-	astar_node *open;
+	astar_node *grid[ASTAR_GRID_SIZE][ASTAR_GRID_SIZE];
+
+	int numclosed; // how many we have
+	astar_node *closed[ASTAR_LIST_SIZE]; //array of closed
+
+	int numopen; //how many we have
+	astar_node *open[ASTAR_LIST_SIZE]; //array of open
 
 } astarpath;
 

@@ -2649,9 +2649,5 @@ int C_CreatePath(int object_id,local_var_type *local_vars,
 	oTo = GetObjectByID(object_val.v.data);
 
 	CreatePath(oFrom,oTo);
-
-	//Param 0 == from objcet
-	//Param 1 == to object
-	//Call CreatePath(from object, to object) 
 	return NIL;
 }

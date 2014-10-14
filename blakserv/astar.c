@@ -19,7 +19,7 @@
 /***********************Start: Node Calculations***********************/
 void CalculateMovementCost(astar_node * node, astarpath * path, bool diagonal)
 {
-	if (!node->parent) //if we have a parent
+	if (node->parent) //if we have a parent
 	{
 		if (diagonal)
 			node->movement_cost = node->parent->movement_cost + 14;
@@ -51,39 +51,35 @@ void CreatePath(object_node * oFrom, object_node * oTo)
 	astar_node *startnode;
 	astarpath *path;
 	class_node *c;
-	int property_id;
+	message_node *m;
+	//message_node * GetCol;
 
 	path = (astarpath *)AllocateMemory(MALLOC_ID_ASTAR,sizeof(astarpath));
-	
 	path->origin = oFrom;
 	path->target = oTo;
 	
 	//get startrow, startcol
+	//Need to send object GetRow/GetCol because objects don't always store their location.
 	c = GetClassByID(oFrom->class_id); //get the oFrom Class to lookup properties with
-	property_id = GetPropertyIDByName(c,"piRow"); //get property id for Row
-	path->startrow = oFrom->p[property_id].val.int_val; //set startrow from object properties
-	property_id = GetPropertyIDByName(c,"piCol"); //get property id for Col
-	path->startcol = oFrom->p[property_id].val.int_val; //set startcol from object properties
+	m = GetMessageByName(c->class_id,"GetRow",&c); //get the message we need
+	path->startrow = SendBlakodMessage(oFrom->object_id,m->message_id,0,0) & 0x0FFFFFFF; //send the message to the object, account for flags
+	m = GetMessageByName(c->class_id,"GetCol",&c); //get the message we need
+	path->startcol = SendBlakodMessage(oFrom->object_id,m->message_id,0,0) & 0x0FFFFFFF; //send the message to the object, account for flags
+	
 	
 	//endrow, endcol
 	c = GetClassByID(oTo->class_id); //get the oTo Class to lookup properties with
-	property_id = GetPropertyIDByName(c,"piRow"); //get property id for Row
-	path->endrow = oTo->p[property_id].val.int_val; //set endrow from object properties
-	property_id = GetPropertyIDByName(c,"piCol"); //get property id for Col
-	path->endcol = oTo->p[property_id].val.int_val; //set endcol from object properties
-
-
-
-	//SendBlakodMessage(int object_id,int message_id,int num_parms,parm_node parms[])
-	//SendBlakodMessage(oFrom->object_id,rowmessage,0,null)
-	
-	property_id = GetPropertyIDByName(c,"GetRow");
+	m = GetMessageByName(c->class_id,"GetRow",&c); //get the message we need
+	path->endrow = SendBlakodMessage(oTo->object_id,m->message_id,0,0) & 0x0FFFFFFF; //send the message to the object, account for flags
+	m = GetMessageByName(c->class_id,"GetCol",&c); //get the message we need
+	path->endcol = SendBlakodMessage(oTo->object_id,m->message_id,0,0) & 0x0FFFFFFF; //send the message to the object, account for flags
 
 	//Create the start node, add it to the closed list
 	startnode = (astar_node *)AllocateMemory(MALLOC_ID_ASTAR,sizeof(astar_node));
 	startnode->row = path->startrow;
 	startnode->col = path->startcol;
 	CalculateScore(startnode,path,false);
+	dprintf("startnode row: %d col: %d score: %d\n", startnode->row, startnode->col, startnode->score);
 	
 	//Scan the node
 }

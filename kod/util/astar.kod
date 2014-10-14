@@ -63,10 +63,19 @@ CreatePath(oFrom = $, oTo  = $, oTestRoom = $)
 			oFrom = First(First(temp));
 			oTo = First(Nth(temp,2));
 		}
+		else
+		{
+			Debug("Don't have two active objects, creating some");
+			oFrom = Create(&PlateArmor);
+			Send(SYS,@PutInRoom,#what=oFrom,#rid=Send(oRoom,@GetRoomNum),#row=7,#col=3); %%DEBUG
+			oTo = Create(&PlateArmor);
+			Send(SYS,@PutInRoom,#what=oTo,#rid=Send(oRoom,@GetRoomNum),#row=8,#col=9); %%DEBUG
+		}
 	}
 
 	%create the path object, which will start calculating things and add it to our list.
 	%%TODO: Call C_CreatePath() WARNING NOT IMPLEMENTED
+	CreateAstarPath(oFrom,oTo);
 	oPath = Create(&AstarPath,#oFrom=oFrom,#oTo=oTo);
 	plAstarPaths = Cons(oPath,plAstarPaths);
 	
