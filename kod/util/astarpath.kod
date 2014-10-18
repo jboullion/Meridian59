@@ -60,7 +60,7 @@ Constructor(oFrom = $, oTo = $)
 	{
 		Send(self,@RemoveDebugItems);
 	}
-	CreateAstarPath(piStartRow,piStartCol,piEndRow,piEndCol,Send(poRoom,@GetRoomNum));
+	CreateAstarPath(piStartRow,piStartCol,piEndRow,piEndCol,Send(poRoom,@GetRoomData));
 	Send(self,@Constructed);
 	return;
 }

@@ -24,112 +24,136 @@ void CalculateScore(astar_node * node, astar_path * path, bool diagonal);
 
 //linked list accessors
 void AddNodeToList(astar_node **head, astar_node *node);
-void DebugPrintList(astar_node *head);
+void DebugPrintList(astar_node *head); //print the list
+void InsertNodeToList(astar_node **head, astar_node *node); //keep the list insertion sorted as you create it
+void RemoveNodeFromList(astar_node **head, astar_node *node); //remove this node from this list
+bool IsNodeOnList(astar_node *head, astar_node *node);
+void PushNodeToList(astar_node **head, astar_node *node);
+
+//grid stuff
+void CreateGrid(astar_path *path);
+void FreeGrid(astar_path *path);
+
+//pathfinding
+void ScanNode(astar_node *startnode, astar_path * path);
 
 
 
 //Takes two objects, from and to (origin and target)
 void CreatePath(int startrow, int startcol, int endrow, int endcol, int roomid)
 {
-	astar_node *startnode;
-	astar_path *path;
-	//message_node * GetCol;
-
-	path = (astar_path *)AllocateMemory(MALLOC_ID_ASTAR,sizeof(astar_path)); //get some memories, because everyone loves memories
-
-	path->room = GetRoomDataByID(roomid); //gets the roomdata we need to use CanMoveInRoom()
-	path->startrow = startrow; //Initializing Stuff
+	//create our astar_path struct and store pointer
+	astar_path *path = (astar_path *)AllocateMemory(MALLOC_ID_ASTAR,sizeof(astar_path)); 
+	//gets the roomdata we need to use CanMoveInRoom()
+	path->room = GetRoomDataByID(roomid);
+	path->startrow = startrow;
 	path->startcol = startcol;
 	path->endrow = endrow;
 	path->endcol = endcol;
-	dprintf("startrow,col %d,%d endrow,col %d,%d, roomid %d ",startrow, startcol, endrow, endcol, roomid);
-	
-	/*Old method, kept for documentation purposes, we all should be aware of how to pass messages to kod from C and interpret the return values.
-	the code: "& 0x0FFFFFFF" is stripping out the 1st 4 bits, which leads me to believe the int returned by SendBlakodMessage is infact a 
-	ret_val struct, and should be typecasted.
-	class_node *c;
-	message_node *m;
-	//get startrow, startcol
-	//Need to send object GetRow/GetCol because objects don't always store their location.
-	c = GetClassByID(oFrom->class_id); //get the oFrom Class to lookup properties with
-	m = GetMessageByName(c->class_id,"GetRow",&c); //get the message we need
-	path->startrow = SendBlakodMessage(oFrom->object_id,m->message_id,0,0) & 0x0FFFFFFF; //send the message to the object, account for flags
-	m = GetMessageByName(c->class_id,"GetCol",&c); //get the message we need
-	path->startcol = SendBlakodMessage(oFrom->object_id,m->message_id,0,0) & 0x0FFFFFFF; //send the message to the object, account for flags
-	
-	
-	//endrow, endcol
-	c = GetClassByID(oTo->class_id); //get the oTo Class to lookup properties with
-	m = GetMessageByName(c->class_id,"GetRow",&c); //get the message we need
-	path->endrow = SendBlakodMessage(oTo->object_id,m->message_id,0,0) & 0x0FFFFFFF; //send the message to the object, account for flags
-	m = GetMessageByName(c->class_id,"GetCol",&c); //get the message we need
-	path->endcol = SendBlakodMessage(oTo->object_id,m->message_id,0,0) & 0x0FFFFFFF; //send the message to the object, account for flags
-	*/
+	CreateGrid(path); //creates our 2d grid of rows
 
-	//Create the start node, add it to the open list
-
-	startnode = (astar_node *)AllocateMemory(MALLOC_ID_ASTAR,sizeof(astar_node)); //get some more memories, because everyone loves more memories
-	//Create the start node, add it to the open list
-	startnode->row = path->startrow;
-	startnode->col = path->startcol;
-	CalculateScore(startnode,path,false);
-	dprintf("startnode row: %d col: %d score: %d\n", startnode->row, startnode->col, startnode->score);
-	AddNodeToList(&path->open,startnode);
-	//DebugPrintList(path->open);
+	//Calculate its values
+	CalculateScore(path->grid[startrow][startcol],path,false);
+	//Add it to the open list
+	//InsertNodeToList(&path->open,path->grid[startrow][startcol]);
 	//Scan the node
+	ScanNode(path->grid[startrow][startcol], path);
+	//Remove it from the open list
+	//RemoveNodeFromList(&path->open,path->grid[startrow][startcol]);
+	//Add it to the closed list
+	InsertNodeToList(&path->closed,path->grid[startrow][startcol]);
 
+	while (!IsNodeOnList(path->closed,path->grid[endrow][endcol]))
+	{
+		astar_node * lowestscorenode = path->open;
+		//the lowest score node should always be the first item on the open list
+		//remove it from the open list
+		RemoveNodeFromList(&path->open,lowestscorenode);
+		//add it to the closed list
+		InsertNodeToList(&path->closed,lowestscorenode);
+		//scan it
+		ScanNode(lowestscorenode, path);
+	}
+
+	//build our path by following the endnode's parents
+	astar_node * endnode = path->grid[endrow][endcol];
+	while (endnode->parent != NULL)
+	{
+		PushNodeToList(&path->path, endnode);
+		endnode = endnode->parent;
+	}
+	//That should be it, we should have a path.
+	DebugPrintList(path->path);
 }
 
-void AddNodeToList(astar_node **head, astar_node *node)
+void CreateGrid(astar_path *path)
 {
-	astar_node *current = *head;
-	if (*head == NULL) //first node
-	{
-		*head = node;
-		return;
-	}
-	while ( current != NULL ) 
-	{
-		current = current->next;
-	}
-	current->next = node;
-
-	return;
-}
-
-void DebugPrintList(astar_node *head)
-{
-	astar_node *current = head;
-	while ( current != NULL ) 
-	{
-		dprintf("node: row %d,col %d,score %d,movecost %d,heuristic %d\n",
-			current->row,current->col,current->score,current->movement_cost,current->heuristic_cost);
-		current = current->next;
-	}
-}
-
-void ScanNode(astar_node *startnode, astar_path * path)
-{
-	for (int rowoffset = -1; rowoffset < 2; rowoffset++) //loop -1, 0, +1
-		for (int coloffset = -1; coloffset < 2; coloffset++) //loop -1, 0, +1
+	for (int row = 1; row <= path->room->file_info.rows; row++)
+		for (int col = 1 ; col <= path->room->file_info.cols; col++)
 		{
-			//if we can move from startnode->row/col to startnode->row/col+row/col offset
-			if (CanMoveInRoom(path->room,startnode->row,startnode->col,startnode->row+rowoffset,startnode->col+coloffset))
-			{
-				//walkable node found, lets fill it out and add it to the open list
-				dprintf("Walkable node found at row,col %d,%d\n",startnode->row+rowoffset,startnode->col+coloffset);
-				astar_node * new_node = (astar_node *)AllocateMemory(MALLOC_ID_ASTAR,sizeof(astar_node));
-				new_node->row = startnode->row+rowoffset;
-				new_node->col = startnode->col+coloffset;
-				new_node->parent = startnode;
-				CalculateScore(new_node,path,(rowoffset!=0 && coloffset!=0)); // (rowoffset!=0 && coloffset!=0) == true when moving diagonal
-				AddNodeToList(&path->open,new_node);
-			}
+			path->grid[row][col] = (astar_node *)AllocateMemory(MALLOC_ID_ASTAR,sizeof(astar_node));
+			path->grid[row][col]->row = row;
+			path->grid[row][col]->col = col;
 		}
 }
 
+void FreeGrid(astar_path *path)
+{
+	for (int row = 1; row <= path->room->file_info.rows; row++)
+		for (int col = 1 ; col <= path->room->file_info.cols; col++)
+			FreeMemory(MALLOC_ID_ASTAR,path->grid[row][col],sizeof(astar_node));
+}
 
-/***********************Start: Node Calculations***********************/
+
+void ScanNode(astar_node *startnode, astar_path * path)
+{
+	astar_node * currentnode;
+	for (int rowoffset = -1; rowoffset < 2; rowoffset++) //loop -1, 0, +1
+	{
+		for (int coloffset = -1; coloffset < 2; coloffset++) //loop -1, 0, +1
+		{
+			//grab our found node from the grid
+			currentnode = path->grid[startnode->row+rowoffset][startnode->col+coloffset];
+			if (currentnode == NULL)
+				continue;
+			//if we are not at 0,0 (startnode)
+			//and if we can move from startnode->row/col to startnode->row/col+row/col offset
+			//and if our node is not on the closed list
+			if ((rowoffset != 0 || coloffset != 0) && 
+				CanMoveInRoom(path->room,startnode->row,startnode->col,currentnode->row,currentnode->col) &&
+				!IsNodeOnList(path->closed,currentnode))
+			{
+				//if the node is not on the open list
+				if (!IsNodeOnList(path->open,currentnode))
+				{
+					//set its parent
+					currentnode->parent = startnode;
+					//calculate its score
+					CalculateScore(currentnode,path,(rowoffset !=0 && coloffset !=0)); // (rowoffset!=0 && coloffset!=0) == true when moving diagonal
+					//add it to the open list
+					InsertNodeToList(&path->open,currentnode);
+				}
+				//if the node is alread on the open list see if the new parent is better than the old parent
+				else
+				{
+					//store the movement cost if we switched our parent to this one
+					int newmovementcost;
+					//if we are moving diagonally
+					if (rowoffset !=0 && coloffset !=0) 
+						newmovementcost = startnode->movement_cost + 14;
+					else
+						newmovementcost = startnode->movement_cost + 10;
+					//if new parent movement cost is lower, set it.
+					if (newmovementcost < currentnode->movement_cost) 
+						currentnode->parent = startnode;
+				}
+			}
+		}
+	}
+}
+
+
+/***********************Start: Node Calculations********************/
 void CalculateMovementCost(astar_node * node, astar_path * path, bool diagonal)
 {
 	if (node->parent) //if we have a parent
@@ -156,4 +180,83 @@ void CalculateScore(astar_node * node, astar_path * path, bool diagonal)
 	CalculateHeuristic(node,path);
 	node->score = node->movement_cost + node->heuristic_cost;
 }
-/**********************************************/
+/*******************************************************************/
+/***********************Start: List Functions***********************/
+//Adds the node at the beginning of the list
+void PushNodeToList(astar_node **head, astar_node *node)
+{
+	node->next=*head;
+	*head = node;
+}
+
+//Insert into list where node->score fits in ascending order
+void InsertNodeToList(astar_node **head, astar_node *node)
+{
+
+	for ( ;*head; head = & (*head)->next)
+	{
+			if ((*head)->score > node->score)
+				break;
+	}
+	node->next = *head;
+	*head = node;
+}
+
+//Remove a node from the list
+void RemoveNodeFromList(astar_node **head, astar_node *node)
+{
+	astar_node *current = NULL,
+			   *previous = NULL;
+	for (current = *head; current != NULL ;previous = current, current = current->next)
+	{
+		if (current == node)
+		{
+			if (previous == NULL)
+			{
+				*head = current->next;
+			}
+			else
+			{
+				previous->next = current->next;
+			}
+			return;
+		}
+	}
+
+}
+
+
+bool IsNodeOnList(astar_node *head, astar_node *node)
+{
+	astar_node *current;
+	for (current = head; current != NULL ;current = current->next)
+	{
+		if (current == node)
+			return true;
+	}
+	return false;
+}
+void DebugPrintList(astar_node *head)
+{
+	astar_node *current = head;
+	while ( current != NULL ) 
+	{
+		dprintf("node: row %d,col %d,movecost %d,heuristic %d,score %d\n",
+			current->row,current->col,current->movement_cost,current->heuristic_cost,current->score);
+		current = current->next;
+	}
+}
+void AddNodeToList(astar_node **head, astar_node *node)
+{
+	astar_node *current = *head;
+	if (*head == NULL) //first node
+	{
+		*head = node;
+		return;
+	}
+	while ( current != NULL ) 
+		current = current->next;
+	current->next = node;
+	return;
+}
+/*******************************************************************/

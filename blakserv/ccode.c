@@ -2659,9 +2659,9 @@ int C_CreatePath(int object_id,local_var_type *local_vars,
 	}
 	roomid = RetrieveValue(object_id,local_vars,normal_parm_array[4].type,
 		normal_parm_array[4].value);
-	if (roomid.v.tag != TAG_INT)
+	if (roomid.v.tag != TAG_ROOM_DATA)
 	{
-		bprintf("C_CreatePath passed non-int for roomid %i,%i\n",roomid.v.tag,roomid.v.data);
+		bprintf("C_CreatePath passed non-room_data for roomid %i,%i\n",roomid.v.tag,roomid.v.data);
 		return NIL;
 	}
 

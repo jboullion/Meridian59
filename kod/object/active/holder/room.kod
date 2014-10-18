@@ -1098,6 +1098,11 @@ messages:
       return FALSE;
    }
    
+	GetRoomData()
+	{
+		return prmRoom;
+	}
+   
 	CanMoveInRoomProxy(iStartRow = 0,iStartCol = 0,iEndRow = 0,iEndCol = 0)
 	{
 		return CanMoveInRoom(prmRoom, iStartRow, iStartCol, iEndRow, iEndCol);

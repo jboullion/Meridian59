@@ -37,10 +37,12 @@ typedef struct astarpath_struct
 	int roomid;
 	roomdata_node *room;
 
-	astar_node *grid; //2d array row/col
+	astar_node *grid[200][200]; //2d array row/col
 
 	astar_node *closed; //linked list
 	astar_node *open; //linked list
+
+	astar_node *path;
 
 } astar_path;
 
