@@ -2627,27 +2627,44 @@ int C_CreatePath(int object_id,local_var_type *local_vars,
 				int num_normal_parms,parm_node normal_parm_array[],
 				int num_name_parms,parm_node name_parm_array[])
 {
-	val_type object_val;
-	object_node *oFrom, *oTo;
+	val_type startrow,startcol,endrow,endcol,roomid;
 	
-	object_val = RetrieveValue(object_id,local_vars,normal_parm_array[0].type,
+	startrow = RetrieveValue(object_id,local_vars,normal_parm_array[0].type,
 		normal_parm_array[0].value);
-	if (object_val.v.tag != TAG_OBJECT)
+	if (startrow.v.tag != TAG_INT)
 	{
-		bprintf("C_CreatePath can't create path from non-object %i,%i\n",object_val.v.tag,object_val.v.data);
+		bprintf("C_CreatePath passed non-int for startrow %i,%i\n",startrow.v.tag,startrow.v.data);
 		return NIL;
 	}
-	oFrom = GetObjectByID(object_val.v.data);
-
-	object_val = RetrieveValue(object_id,local_vars,normal_parm_array[1].type,
+	startcol = RetrieveValue(object_id,local_vars,normal_parm_array[1].type,
 		normal_parm_array[1].value);
-	if (object_val.v.tag != TAG_OBJECT)
+	if (startcol.v.tag != TAG_INT)
 	{
-		bprintf("C_CreatePath can't create path to non-object %i,%i\n",object_val.v.tag,object_val.v.data);
+		bprintf("C_CreatePath passed non-int for startcol %i,%i\n",startcol.v.tag,startcol.v.data);
 		return NIL;
 	}
-	oTo = GetObjectByID(object_val.v.data);
+	endrow = RetrieveValue(object_id,local_vars,normal_parm_array[2].type,
+		normal_parm_array[2].value);
+	if (endrow.v.tag != TAG_INT)
+	{
+		bprintf("C_CreatePath passed non-int for endrow %i,%i\n",endrow.v.tag,endrow.v.data);
+		return NIL;
+	}
+	endcol = RetrieveValue(object_id,local_vars,normal_parm_array[3].type,
+		normal_parm_array[3].value);
+	if (endcol.v.tag != TAG_INT)
+	{
+		bprintf("C_CreatePath passed non-int for endcol %i,%i\n",endcol.v.tag,endcol.v.data);
+		return NIL;
+	}
+	roomid = RetrieveValue(object_id,local_vars,normal_parm_array[4].type,
+		normal_parm_array[4].value);
+	if (roomid.v.tag != TAG_INT)
+	{
+		bprintf("C_CreatePath passed non-int for roomid %i,%i\n",roomid.v.tag,roomid.v.data);
+		return NIL;
+	}
 
-	CreatePath(oFrom,oTo);
+	CreatePath(startrow.v.data,startcol.v.data,endrow.v.data,endcol.v.data,roomid.v.data);
 	return NIL;
 }

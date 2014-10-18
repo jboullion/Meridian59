@@ -12,9 +12,6 @@
 #ifndef _ASTAR_H
 #define _ASTAR_H
 
-#define ASTAR_GRID_SIZE 128
-#define ASTAR_LIST_SIZE 128
-
 typedef struct astarnode_struct
 {
 	int row, col;
@@ -25,7 +22,9 @@ typedef struct astarnode_struct
 	//To put it simply, we will use the “Manhattan distance method” (Also called “Manhattan length” or “city block distance”) that just counts the number of horizontal and vertical square remaining to reach point B without taking into account of any obstacles or differences of land.
 	int heuristic_cost;
 	//Next node on the path
-	struct astarnode_struct *parent;
+	astarnode_struct *parent;
+	//so we can make nodes into a linked list
+	astarnode_struct *next;
 
 } astar_node;
 
@@ -35,19 +34,16 @@ typedef struct astarpath_struct
 	int startcol;
 	int endrow;
 	int endcol;
-	object_node *origin;
-	object_node *target;
+	int roomid;
+	roomdata_node *room;
 
-	astar_node *grid[ASTAR_GRID_SIZE][ASTAR_GRID_SIZE];
+	astar_node *grid; //2d array row/col
 
-	int numclosed; // how many we have
-	astar_node *closed[ASTAR_LIST_SIZE]; //array of closed
-
-	int numopen; //how many we have
-	astar_node *open[ASTAR_LIST_SIZE]; //array of open
+	astar_node *closed; //linked list
+	astar_node *open; //linked list
 
 } astar_path;
 
-void CreatePath(object_node * oFrom, object_node * oTo);
+void CreatePath(int startrow, int startcol, int endrow, int endcol, int roomid);
 
 #endif /*#ifndef _ASTAR_H */
