@@ -48,6 +48,7 @@ int CreatePath(int startrow, int startcol, int endrow, int endcol, int roomid)
 	path->startcol = startcol;
 	path->endrow = endrow;
 	path->endcol = endcol;
+	path->path_list_id = 0;
 	CreateGrid(path); //creates our 2d grid of rows
 
 	astar_node * startnode = path->grid[startrow][startcol];
@@ -128,6 +129,7 @@ void CreateGrid(astar_path *path)
 			path->grid[row][col] = (astar_node *)AllocateMemory(MALLOC_ID_ASTAR,sizeof(astar_node));
 			path->grid[row][col]->row = row;
 			path->grid[row][col]->col = col;
+			path->grid[row][col]->parent = NULL;
 		}
 }
 
@@ -183,6 +185,9 @@ void ScanNode(astar_node *startnode, astar_path *path)
 					{
 						currentnode->parent = startnode;
 						CalculateScore(currentnode,path,(rowoffset !=0 && coloffset !=0));
+						//remove and re-add it to the open list, to keep the list sorted
+						RemoveNodeFromList(&path->open,currentnode);
+						InsertNodeToList(&path->open,currentnode);
 					}
 				}
 			}
@@ -194,7 +199,7 @@ void ScanNode(astar_node *startnode, astar_path *path)
 /***********************Start: Node Calculations********************/
 void CalculateMovementCost(astar_node *node, astar_path *path, bool diagonal)
 {
-	if (node->parent) //if we have a parent
+	if (node->parent != NULL) //if we have a parent
 	{
 		if (diagonal)
 			node->movement_cost = node->parent->movement_cost + 14;
