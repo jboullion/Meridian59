@@ -179,8 +179,11 @@ void ScanNode(astar_node *startnode, astar_path *path)
 					else
 						newmovementcost = startnode->movement_cost + 10;
 					//if new parent movement cost is lower, set it.
-					if (newmovementcost < currentnode->movement_cost) 
+					if (newmovementcost < currentnode->parent->movement_cost)
+					{
 						currentnode->parent = startnode;
+						CalculateScore(currentnode,path,(rowoffset !=0 && coloffset !=0));
+					}
 				}
 			}
 		}
