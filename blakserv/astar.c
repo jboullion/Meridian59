@@ -153,12 +153,14 @@ void ScanNode(astar_node *startnode, astar_path *path)
 			//if the node is outside the map boundary, skip it
 			if (currentnode == NULL)
 				continue;
-			//if we are not at 0,0 (startnode)
-			//and if we can move from startnode->row/col to startnode->row/col+row/col offset
-			//and if our node is not on the closed list
-			if ((rowoffset != 0 || coloffset != 0) && 
-				CanMoveInRoom(path->room,startnode->row,startnode->col,currentnode->row,currentnode->col) &&
-				!IsNodeOnList(path->closed,currentnode))
+			//if currentnode == starnode, skip it
+			if (currentnode == startnode)
+				continue;
+			//if the node is on the current list, skip it
+			if (IsNodeOnList(path->closed,currentnode))
+				continue;
+			//if we can move from startnode->row/col to currentnode->row/col
+			if (CanMoveInRoom(path->room,startnode->row,startnode->col,currentnode->row,currentnode->col))
 			{
 				//if the node is not on the open list
 				if (!IsNodeOnList(path->open,currentnode))
