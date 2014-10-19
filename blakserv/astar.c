@@ -139,7 +139,7 @@ void FreeGrid(astar_path *path)
 }
 
 
-void ScanNode(astar_node *startnode, astar_path * path)
+void ScanNode(astar_node *startnode, astar_path *path)
 {
 	astar_node * currentnode;
 	for (int rowoffset = -1; rowoffset < 2; rowoffset++) //loop -1, 0, +1
@@ -148,6 +148,7 @@ void ScanNode(astar_node *startnode, astar_path * path)
 		{
 			//grab our found node from the grid
 			currentnode = path->grid[startnode->row+rowoffset][startnode->col+coloffset];
+			//if the node is outside the map boundary, skip it
 			if (currentnode == NULL)
 				continue;
 			//if we are not at 0,0 (startnode)
@@ -188,7 +189,7 @@ void ScanNode(astar_node *startnode, astar_path * path)
 
 
 /***********************Start: Node Calculations********************/
-void CalculateMovementCost(astar_node * node, astar_path * path, bool diagonal)
+void CalculateMovementCost(astar_node *node, astar_path *path, bool diagonal)
 {
 	if (node->parent) //if we have a parent
 	{
@@ -203,12 +204,12 @@ void CalculateMovementCost(astar_node * node, astar_path * path, bool diagonal)
 	}
 }
 
-void CalculateHeuristic(astar_node * node, astar_path * path)
+void CalculateHeuristic(astar_node *node, astar_path *path)
 {
 	node->heuristic_cost = (abs(path->endrow - node->row) * 10) + (abs(path->endcol - node->col) * 10);
 }
 
-void CalculateScore(astar_node * node, astar_path * path, bool diagonal)
+void CalculateScore(astar_node *node, astar_path *path, bool diagonal)
 {
 	CalculateMovementCost(node,path,diagonal);
 	CalculateHeuristic(node,path);
@@ -256,7 +257,6 @@ void RemoveNodeFromList(astar_node **head, astar_node *node)
 			return;
 		}
 	}
-
 }
 
 
