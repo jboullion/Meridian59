@@ -73,19 +73,19 @@ CreatePath(oFrom = $, oTo  = $, oTestRoom = $)
 		}
 	}
 
-	%create the path object, which will start calculating things and add it to our list.
-
+	%create the path object, which will call the C Code to calculate our path. Add the object to the list so we can clean up later.
 	oPath = Create(&AstarPath,#oFrom=oFrom,#oTo=oTo);
 	plAstarPaths = Cons(oPath,plAstarPaths);
 	
 	return oPath;
 }
 
-RemovePath(oNode = $)
+RemovePath(oPath = $)
 {
-	if oNode <> $
+	if oPath <> $
 	{
-		DelListElem(plAstarPaths,oNode);
+		Send(oPath,@Delete);
+		DelListElem(plAstarPaths,oPath);
 	}
 	return;
 }

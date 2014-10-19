@@ -42,10 +42,10 @@ typedef struct astarpath_struct
 	astar_node *closed; //linked list
 	astar_node *open; //linked list
 
-	astar_node *path;
+	int path_list_id;
 
 } astar_path;
 
-void CreatePath(int startrow, int startcol, int endrow, int endcol, int roomid);
+int CreatePath(int startrow, int startcol, int endrow, int endcol, int roomid);
 
 #endif /*#ifndef _ASTAR_H */

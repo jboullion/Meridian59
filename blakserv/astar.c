@@ -37,10 +37,8 @@ void FreeGrid(astar_path *path);
 //pathfinding
 void ScanNode(astar_node *startnode, astar_path * path);
 
-
-
 //Takes two objects, from and to (origin and target)
-void CreatePath(int startrow, int startcol, int endrow, int endcol, int roomid)
+int CreatePath(int startrow, int startcol, int endrow, int endcol, int roomid)
 {
 	//create our astar_path struct and store pointer
 	astar_path *path = (astar_path *)AllocateMemory(MALLOC_ID_ASTAR,sizeof(astar_path)); 
@@ -52,21 +50,23 @@ void CreatePath(int startrow, int startcol, int endrow, int endcol, int roomid)
 	path->endcol = endcol;
 	CreateGrid(path); //creates our 2d grid of rows
 
-	//Calculate its values
-	CalculateScore(path->grid[startrow][startcol],path,false);
-	//Add it to the open list
-	//InsertNodeToList(&path->open,path->grid[startrow][startcol]);
-	//Scan the node
-	ScanNode(path->grid[startrow][startcol], path);
-	//Remove it from the open list
-	//RemoveNodeFromList(&path->open,path->grid[startrow][startcol]);
-	//Add it to the closed list
-	InsertNodeToList(&path->closed,path->grid[startrow][startcol]);
+	astar_node * startnode = path->grid[startrow][startcol];
+	astar_node * endnode = path->grid[endrow][endcol];
 
-	while (!IsNodeOnList(path->closed,path->grid[endrow][endcol]))
+	//Calculate its values
+	CalculateScore(startnode,path,false);
+	//Add it to the open list
+	InsertNodeToList(&path->open,path->grid[startrow][startcol]);
+
+	//Calculate scores and parents for all our nodes
+	while (!IsNodeOnList(path->closed,endnode))
 	{
-		astar_node * lowestscorenode = path->open;
 		//the lowest score node should always be the first item on the open list
+		astar_node * lowestscorenode = path->open;
+		if (lowestscorenode == NULL) //If the open list is empty we don't have a path.
+		{
+			return NIL;
+		}
 		//remove it from the open list
 		RemoveNodeFromList(&path->open,lowestscorenode);
 		//add it to the closed list
@@ -75,15 +75,49 @@ void CreatePath(int startrow, int startcol, int endrow, int endcol, int roomid)
 		ScanNode(lowestscorenode, path);
 	}
 
-	//build our path by following the endnode's parents
-	astar_node * endnode = path->grid[endrow][endcol];
+	//build our path by following the endnode's parents to the startnode
 	while (endnode->parent != NULL)
 	{
-		PushNodeToList(&path->path, endnode);
-		endnode = endnode->parent;
+		int coordinate_list;
+		//Create a list [ [ row, col ], [ row, col ], etc...]
+		val_type first_val,rest_val;
+		first_val.v.tag = TAG_INT;
+		first_val.v.data = endnode->col;
+		rest_val.v.tag = TAG_NIL;
+		coordinate_list = Cons(first_val,rest_val); // [ col ]
+
+		first_val.v.tag = TAG_INT;
+		first_val.v.data = endnode->row;
+		rest_val.v.tag = TAG_LIST;
+		rest_val.v.data = coordinate_list;
+		coordinate_list = Cons(first_val,rest_val); // [ row, col ]
+
+		first_val.v.tag = TAG_LIST;
+		first_val.v.data = coordinate_list;
+
+		if (path->path_list_id == 0)
+		{	
+			rest_val.v.tag = TAG_NIL; // if we dont yet have a superlist, create one
+		}
+		else
+		{
+			rest_val.v.tag = TAG_LIST;
+			rest_val.v.data = path->path_list_id; // or append to it if we do
+		}
+		path->path_list_id = Cons(first_val,rest_val); // add [row, col] to the superlist of coordinate pairs
+
+		endnode = endnode->parent;	
 	}
-	//That should be it, we should have a path.
-	DebugPrintList(path->path);
+	//so kod can interpret the list, tag it before returning it
+	val_type return_val;
+	return_val.v.tag = TAG_LIST;
+	return_val.v.data = path->path_list_id;
+
+	//Finally, clean up our grid, our path object
+	FreeGrid(path);
+	FreeMemory(MALLOC_ID_ASTAR,path,sizeof(astar_path));
+
+	return return_val.int_val;
 }
 
 void CreateGrid(astar_path *path)

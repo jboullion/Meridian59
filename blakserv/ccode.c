@@ -2664,7 +2664,5 @@ int C_CreatePath(int object_id,local_var_type *local_vars,
 		bprintf("C_CreatePath passed non-room_data for roomid %i,%i\n",roomid.v.tag,roomid.v.data);
 		return NIL;
 	}
-
-	CreatePath(startrow.v.data,startcol.v.data,endrow.v.data,endcol.v.data,roomid.v.data);
-	return NIL;
+	return CreatePath(startrow.v.data,startcol.v.data,endrow.v.data,endcol.v.data,roomid.v.data);
 }

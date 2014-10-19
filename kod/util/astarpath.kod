@@ -6,16 +6,10 @@ resources:
 
 classvars:
 
-%%This classvar will set the maximum number of steps allowed in path calculation
-viMaxStepCalc = 150
-
 vbDebugItems = FALSE
 
 properties:
 
-plOpen = $
-plClosed = $
-plHistory = $
 plPath = $
 
 %Room we are moving within
@@ -27,9 +21,6 @@ piStartCol = 0
 piEndRow = 0
 piEndCol = 0
 
-poStartNode = $
-poEndNode = $
-
 poFrom = $
 poTo = $
 
@@ -38,113 +29,50 @@ plDebugItems = $
 messages:
 
 Constructor(oFrom = $, oTo = $)
-{
-	local oRoom, iStartRow, iStartCol, iEndRow, iEndCol;
-	
-	plOpen = [];
-	plClosed = [];
-	plPath = [];
-	poStartNode = $;
-	poEndNode = $;
-	
+{	
+	Debug("Constructor():oTo",oTo);
 	poFrom = oFrom;
 	poTo = oTo;
+	plPath = [];
 	
 	poRoom = Send(oFrom,@GetOwner);
-	piStartRow = (Send(oFrom,@GetRow));
-	piStartCol = (Send(oFrom,@GetCol));
-	piEndRow = (Send(oTo,@GetRow));
-	piEndCol = (Send(oTo,@GetCol));
+	piStartRow = Send(oFrom,@GetRow);
+	piStartCol = Send(oFrom,@GetCol);
+	piEndRow = Send(oTo,@GetRow);
+	piEndCol = Send(oTo,@GetCol);
 	
 	if vbDebugItems
 	{
 		Send(self,@RemoveDebugItems);
 	}
-	CreateAstarPath(piStartRow,piStartCol,piEndRow,piEndCol,Send(poRoom,@GetRoomData));
-	Send(self,@Constructed);
+	plPath = CreateAstarPath(piStartRow,piStartCol,piEndRow,piEndCol,Send(poRoom,@GetRoomData));
+
 	return;
 }
 
 Recreate()
 {
-	local i;
-	
-	for i in plOpen
-	{
-		Send(i,@Recreate);
-	}
-	for i in plClosed
-	{
-		Send(i,@Recreate);
-	}
-	return;
-}
-
-Constructed()
-{
-	%%creates the starting position node
-	poStartNode = Send(self,@CreateNode,#iRow=piStartRow,#iCol=piStartCol);
-
-	if poStartNode <> $
-	{
-		Send(self,@ScanNode,#oNode=poStartNode);
-	}
-	
-	Send(self,@CalculatePath);
-	return;
-}
-
-%Calculates the entire path
-CalculatePath()
-{
-	local i, oNextNode,oDebugItem;
-	i = 0;
-	%%stop calculating if we arrived at the end, or if we're calculating more than viMaxStepCalc steps (closed list), or
-	%%if we've got more than viMaxStepCalc * 8 items on the open list, to prevent infinite loops on impossible
-	%%paths
-	while i < 1 and Length(plClosed) < viMaxStepCalc and Length(plOpen) < viMaxStepCalc * 8
-	{
-		i = Send(self,@FindNextMove);
-	}
-	
-	oNextNode = poEndNode;
-	
-	while oNextNode <> $
-	{
-		%create our path in plPath
-		plPath = Cons(oNextNode,plPath);
-		if vbDebugItems
-		{
-			oDebugItem = Create(&Apple);
-			plDebugItems = Cons(oDebugItem,plDebugItems);
-			Send(SYS,@PutInRoom,#what=oDebugItem,#rid=Send(poRoom,@GetRoomNum),#row=Send(oNextNode,@GetRow),#col=Send(oNextNode,@GetCol)); %%DEBUG
-		}
-		
-		oNextNode = Send(oNextNode,@GetParent);
-		
-	}
-	
-	%remove the starting location from the path, as moving from and to the same row/col makes monsters move backwards
-	plPath = DelListElem(plPath,First(plPath));
 	return;
 }
 
 %Checks if Destination has changed before calculating the next step, if so, starts over.
 %Used for Monster movement
-CalculateStep(oTo = $)
+CalculateStep(oTarget = $)
 {
 	local i; 
 	%check if we changed targets (monsters may have a new enemy, or the ally they are seeking
 	%may have been slain, etc.
-	if oTo <> poTo
+	if oTarget <> poTo
 	{
-		poTo = oTo;
+		poTo = oTarget;
+		Debug("Re-Creating Path: Target Changed:",oTarget);
 		Send(self,@Constructor,#oFrom=poFrom,#oTo=poTo);
 	}
 	%check if the target changed position since our last move
 	%TODO:should we change this to make it less sensitive to target movement to allow less repeat-pathfinding?
-	if Send(oTo,@GetRow) <> piEndRow or Send(oTo,@GetCol) <> piEndCol
+	if Send(oTarget,@GetRow) <> piEndRow or Send(oTarget,@GetCol) <> piEndCol
 	{
+		Debug("Re-Creating Path: Target Moved");
 		Send(self,@Constructor,#oFrom=poFrom,#oTo=poTo);
 	}
 	
@@ -159,319 +87,25 @@ CalculateStep(oTo = $)
 	{
 		i = $;
 	}
+	if vbDebugItems AND plPath <> $
+	{
+		Send(self,@CreateDebugItems);
+	}
 	
 	return i;
 }
 
-
-CreateNode(iRow = 0, iCol = 0, oParent = $, diagonal = FALSE)
-{	
-	local oNode;
-
-	return Create(&AstarNode,#iRow=iRow,#iCol=iCol,#iEndRow=piEndRow,#iEndCol=piEndCol,#oParent=oParent,#diagonal=diagonal);
-
-}
-
-FindNextMove()
+CreateDebugItems()
 {
-	local oLowestScoreNode, oDebugItem;
-	
-	%%Get the square on the open list which has the lowest score.
-	oLowestScoreNode = Send(self,@FindLowestScore);
-	if oLowestScoreNode = $
-	{
-		return 1;
-	}
-
-	%%Remove it from the open list
-	if plOpen <> $
-	{
-		%plHistory = Cons(oLowestScoreNode,plHistory);
-		plOpen = DelListElem(plOpen,oLowestScoreNode);
-	}
-	
-	%%Add it to the closed list
-	plClosed = Cons(oLowestScoreNode,plClosed);
-	
-	%%Are we there yet?
-	if Send(oLowestScoreNode,@GetRow) = piEndRow AND Send(oLowestScoreNode,@GetCol) = piEndCol
-	{
-		poEndNode = oLowestScoreNode;
-		return 1;	
-	}
-	
-	%%Scan the Node
-	Send(self,@ScanNode,#oNode=oLowestScoreNode);
-	
-	
-	return 0;
-}
-
-ScanNode(oNode = $)
-{
-	local iNodeRow, iNodeCol, oNewNode, oFoundNode;
-	iNodeRow = Send(oNode,@GetRow);
-	iNodeCol = Send(oNode,@GetCol);
-	
-	oFoundNode = $;
-	%If Walkable
-	if Send(poRoom,@CanMoveInRoomProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
-		#iEndRow=iNodeRow+1,#iEndCol=iNodeCol)
-	{
-		oFoundNode = Send(self,@FindClosedNode,#iRow=iNodeRow+1,#iCol=iNodeCol);
-		if oFoundNode <> $
-		{
-
-		}
-		else %And not closed
-		{	
-			%is it in the Open List?
-			oFoundNode = Send(self,@FindOpenNode,#iRow=iNodeRow+1,#iCol=iNodeCol);
-			if oFoundNode <> $
-			{
-				%Yes? Recalculate Heueristic
-				Send(oFoundNode,@TryNewParent,#oNode=oNode);
-				
-			}
-			else
-			{
-				%No? Create a new Node
-				oNewNode = Send(self,@CreateNode,#iRow=iNodeRow+1,#iCol=iNodeCol,#oParent=oNode);
-				plOpen = Cons(oNewNode,plOpen);
-			}
-		}
-	}
-	
-	oFoundNode = $;
-	if Send(poRoom,@CanMoveInRoomProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
-		#iEndRow=iNodeRow-1,#iEndCol=iNodeCol)
-	{
-		oFoundNode = Send(self,@FindClosedNode,#iRow=iNodeRow-1,#iCol=iNodeCol);
-		if oFoundNode <> $
-		{
-
-		}
-		else
-		{
-			%is it in the Open List?
-			oFoundNode = Send(self,@FindOpenNode,#iRow=iNodeRow-1,#iCol=iNodeCol);
-			if oFoundNode <> $
-			{
-				%Yes? Recalculate Heueristic
-				Send(oFoundNode,@TryNewParent,#oNode=oNode);
-			}
-			else
-			{
-				%No? Create a new Node
-				oNewNode = Send(self,@CreateNode,#iRow=iNodeRow-1,#iCol=iNodeCol,#oParent=oNode);
-				plOpen = Cons(oNewNode,plOpen);
-			}
-		}
-	}
-	
-	oFoundNode = $;
-	if Send(poRoom,@CanMoveInRoomProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
-		#iEndRow=iNodeRow,#iEndCol=iNodeCol+1)
-	{
-		oFoundNode = Send(self,@FindClosedNode,#iRow=iNodeRow,#iCol=iNodeCol+1);
-		if oFoundNode <> $
-		{
-
-		}
-		else
-		{	
-			%is it in the Open List?
-			oFoundNode = Send(self,@FindOpenNode,#iRow=iNodeRow,#iCol=iNodeCol+1);
-			if oFoundNode <> $
-			{
-				%Yes? Recalculate Heueristic
-				Send(oFoundNode,@TryNewParent,#oNode=oNode);
-			}
-			else
-			{
-				%No? Create a new Node
-				oNewNode = Send(self,@CreateNode,#iRow=iNodeRow,#iCol=iNodeCol+1,#oParent=oNode);
-				plOpen = Cons(oNewNode,plOpen);
-			}
-		}
-	}
-	
-	oFoundNode = $;
-	if Send(poRoom,@CanMoveInRoomProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
-		#iEndRow=iNodeRow,#iEndCol=iNodeCol-1)
-	{
-		oFoundNode = Send(self,@FindClosedNode,#iRow=iNodeRow,#iCol=iNodeCol-1);
-		if oFoundNode <> $
-		{
-
-		}
-		else
-		{
-			%is it in the Open List?
-			oFoundNode = Send(self,@FindOpenNode,#iRow=iNodeRow,#iCol=iNodeCol-1);
-			if oFoundNode <> $
-			{
-				%Yes? Recalculate Heueristic
-				Send(oFoundNode,@TryNewParent,#oNode=oNode);
-			}
-			else
-			{
-				%No? Create a new Node
-				oNewNode = Send(self,@CreateNode,#iRow=iNodeRow,#iCol=iNodeCol-1,#oParent=oNode);
-				plOpen = Cons(oNewNode,plOpen);
-			}
-		}
-	}
-	%North-East
-	if Send(poRoom,@CanMoveInRoomProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
-		#iEndRow=iNodeRow-1,#iEndCol=iNodeCol+1)
-	{
-		oFoundNode = Send(self,@FindClosedNode,#iRow=iNodeRow-1,#iCol=iNodeCol+1);
-		if oFoundNode <> $
-		{
-		
-		}
-		else %And not closed
-		{	
-			%is it in the Open List?
-			oFoundNode = Send(self,@FindOpenNode,#iRow=iNodeRow-1,#iCol=iNodeCol+1);
-			if oFoundNode <> $
-			{
-				%Yes? Recalculate Heueristic
-				Send(oFoundNode,@TryNewParent,#oNode=oNode,#diagonal=TRUE);
-			}
-			else
-			{
-				%No? Create a new Node
-				oNewNode = Send(self,@CreateNode,#iRow=iNodeRow-1,#iCol=iNodeCol+1,#oParent=oNode,#diagonal=TRUE);
-				plOpen = Cons(oNewNode,plOpen);
-			}
-		}
-	}
-	%South-East
-	if Send(poRoom,@CanMoveInRoomProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
-		#iEndRow=iNodeRow+1,#iEndCol=iNodeCol+1)
-	{
-		oFoundNode = Send(self,@FindClosedNode,#iRow=iNodeRow+1,#iCol=iNodeCol+1);
-		if oFoundNode <> $
-		{
-		
-		}
-		else %And not closed
-		{	
-			%is it in the Open List?
-			oFoundNode = Send(self,@FindOpenNode,#iRow=iNodeRow+1,#iCol=iNodeCol+1);
-			if oFoundNode <> $
-			{
-				%Yes? Recalculate Heueristic
-				Send(oFoundNode,@TryNewParent,#oNode=oNode,#diagonal=TRUE);
-			}
-			else
-			{
-				%No? Create a new Node
-				oNewNode = Send(self,@CreateNode,#iRow=iNodeRow+1,#iCol=iNodeCol+1,#oParent=oNode,#diagonal=TRUE);
-				plOpen = Cons(oNewNode,plOpen);
-			}
-		}
-	}
-	%North-West
-	if Send(poRoom,@CanMoveInRoomProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
-		#iEndRow=iNodeRow-1,#iEndCol=iNodeCol-1)
-	{
-		oFoundNode = Send(self,@FindClosedNode,#iRow=iNodeRow-1,#iCol=iNodeCol-1);
-		if oFoundNode <> $
-		{
-
-		}
-		else %And not closed
-		{	
-			%is it in the Open List?
-			oFoundNode = Send(self,@FindOpenNode,#iRow=iNodeRow-1,#iCol=iNodeCol-1);
-			if oFoundNode <> $
-			{
-				%Yes? Recalculate Heueristic
-				Send(oFoundNode,@TryNewParent,#oNode=oNode,#diagonal=TRUE);
-			}
-			else
-			{
-				%No? Create a new Node
-				oNewNode = Send(self,@CreateNode,#iRow=iNodeRow-1,#iCol=iNodeCol-1,#oParent=oNode,#diagonal=TRUE);
-				plOpen = Cons(oNewNode,plOpen);
-			}
-		}
-	}
-	%South-West
-	if Send(poRoom,@CanMoveInRoomProxy,#iStartRow=iNodeRow,#iStartCol=iNodeCol,
-		#iEndRow=iNodeRow+1,#iEndCol=iNodeCol-1)
-	{
-		oFoundNode = Send(self,@FindClosedNode,#iRow=iNodeRow+1,#iCol=iNodeCol-1);
-		if oFoundNode <> $
-		{
-
-		}
-		else %And not closed
-		{	
-			%is it in the Open List?
-			oFoundNode = Send(self,@FindOpenNode,#iRow=iNodeRow+1,#iCol=iNodeCol-1);
-			if oFoundNode <> $
-			{
-				%Yes? Recalculate Heueristic
-				Send(oFoundNode,@TryNewParent,#oNode=oNode,#diagonal=TRUE);
-			}
-			else
-			{
-				%No? Create a new Node
-				oNewNode = Send(self,@CreateNode,#iRow=iNodeRow+1,#iCol=iNodeCol-1,#oParent=oNode,#diagonal=TRUE);
-				plOpen = Cons(oNewNode,plOpen);
-			}
-		}
+	local oDebugItem, i;
+	Debug("plPath:",plPath);
+	for i in plPath
+	{	
+		oDebugItem = Create(&Apple);
+		plDebugItems = Cons(oDebugItem,plDebugItems);
+		Send(SYS,@PutInRoom,#what=oDebugItem,#rid=Send(poRoom,@GetRoomNum),#row=Nth(i,1),#col=Nth(i,2));
 	}
 	return;
-}
-
-FindLowestScore()
-{
-	local i, lNodes, lFinal, iLow, iIndex, oFinalNode;
-	
-	%get a copy of the open list to work with
-	lNodes = Send(SYS, @ListCopy,#source=plOpen);
-	
-	lFinal = $;
-	%%Insertion sort based on score
-	while lNodes <> $
-	{
-		iLow = MAX_INT;
-		iIndex = $;
-		
-		for i in lNodes
-		{
-			if Send(i,@GetScore) < iLow
-			{
-				iIndex = i;
-				iLow = Send(i,@GetScore);
-			}
-		}
-		
-		if iIndex = $ OR iLow = MAX_INT
-        {
-			
-			return $;
-		}
-		
-		lFinal = Cons(iIndex,lFinal);
-		lNodes = DelListElem(lNodes,iIndex);
-	}
-	
-	
-	
-	
-	
-	%%The last item in the list is the lowest score, and lowest heurestic.
-	oFinalNode = Nth(lFinal,Length(lFinal));
-		
-	return oFinalNode;
-	
-	
 }
 
 RemoveDebugItems()
@@ -487,49 +121,9 @@ RemoveDebugItems()
 
 Delete()
 {
-	plOpen = $;
-	plClosed = $;
 	return;
 }
 
-FindClosedNode(iRow = 0, iCol = 0)
-{
-	local i;
-	for i in plClosed
-	{
-		if Send(i,@GetCol) = iCol AND Send(i,@GetRow) = iRow
-		{
-			return i;
-		}
-	}
-	return $;
-}
-
-FindOpenNode(iRow = 0, iCol = 0)
-{
-	local i;
-	for i in plOpen
-	{
-		if Send(i,@GetCol) = iCol AND Send(i,@GetRow) = iRow
-		{
-			return i;
-		}
-	}
-	return $;
-}
-
-FindHistoryNode(iRow = 0, iCol = 0)
-{
-	local i;
-	for i in plHistory
-	{
-		if Send(i,@GetCol) = iCol AND Send(i,@GetRow) = iRow
-		{
-			return i;
-		}
-	}
-	return $;
-}
 
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
