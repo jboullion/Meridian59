@@ -122,6 +122,9 @@ constants:
    % What's the maximum stat we can have after modification?
    MAXIMUM_STAT = 70
 
+   % how long to wait before sending another pvp notify sound (seconds)
+   PVP_NOTIFY_DECAY = 5 * 60
+   
 resources:
 
    player_cant_broadcast = \
@@ -138,6 +141,7 @@ resources:
    player_use_full_hands = "Your hands are too full to use that."
    player_not_using = "You are not using that."
    player_not_holding = "You are not even holding %s%s."
+   player_regbag_empty = "The reagent bag is empty."
    
    player_hit_color_red = "~r"
    player_hit_color_blue = "~b"
@@ -777,6 +781,12 @@ resources:
    phased_player_description = \
       "This is the ghosted body of %q, whose consciousness has travelled to "
       "another plane of existence."
+      
+   bad_line_of_sight = \
+      "Your hindered line of sight makes a successful hit more difficult."
+
+      
+   pvp_notify_wav = gong.wav
 
 classvars:
 
@@ -912,7 +922,6 @@ properties:
 
    % Timers 
    ptHealth = $
-   ptMana = $
    ptAdvancement = $
    ptRest = $
 
@@ -1029,6 +1038,9 @@ properties:
    %  to disallow casting by angeled "mules".
    piTimeAttackedPlayer = 0 
 
+   % piTimeAttackedByPlayer records the last time we were attacked by a player.
+   piTimeAttackedByPlayer = 0
+   
    % piDeathcost is used to tell the underworld what percent of normal
    %  penalties to apply when the players leaves.  FALSE means no penalties.
    piDeathCost = 100
@@ -2871,11 +2883,6 @@ messages:
       return Send(self,@GetBaseMaxHealth);
    }
 
-   GetMaxMana()
-   {
-      return piMax_mana;
-   }
-
    GetKillTarget()
    {
       return poKill_target;
@@ -2912,22 +2919,6 @@ messages:
       else
       {
          Send(self,@NewHealth);
-      }
-
-      return;
-   }
-
-   ManaTimer()
-   {
-      ptMana = $;
-
-      if piMana < piMax_mana
-      {
-         Send(self,@GainMana,#amount=1);
-      }
-      else
-      {
-         Send(self,@LoseMana,#amount=1);
       }
 
       return;
@@ -3679,6 +3670,20 @@ messages:
          return FALSE;
       }
 
+      if IsClass(what,&ReagentBag)
+      {
+         if Send(what,@GetReagentBagContents) = $
+         {
+            Send(self,@MsgSendUser,#message_rsc=player_regbag_empty);
+
+            return FALSE;
+         }
+
+         Send(self,@UserObjectContents,#what=what);
+
+         return TRUE;
+      }
+
       iUse_type = Send(what,@GetItemUseType);
 
       if iUse_type & ITEM_SINGLE_USE
@@ -4036,11 +4041,17 @@ messages:
 
             % Check status and safety against the owner of the minion.
             if NOT IsClass(oRoom,&GuildHall)
-               AND NOT Send(self,@CheckStatusAndSafety,
-                           #victim=Send(victim,@GetMaster),
-                           #report=report,#minion=TRUE)
             {
-               return FALSE;
+               if NOT Send(oRoom,@ReqSomethingAttack,#what=self,
+                           #victim=Send(victim,@GetMaster),
+                           #use_weapon=use_weapon,#stroke_obj=stroke_obj,
+                           #report=report,#actual=actual)
+                  OR NOT Send(self,@CheckStatusAndSafety,
+                              #victim=Send(victim,@GetMaster),
+                              #report=report,#minion=TRUE)
+               {
+                  return FALSE;
+               }
             }
          }
 
@@ -4048,8 +4059,10 @@ messages:
          {
             if report
             {
-               Send(self,@MsgSendUser,#message_rsc=Jig_cannot_attack,#parm1=Send(victim,@GetName));
+               Send(self,@MsgSendUser,#message_rsc=Jig_cannot_attack,
+                     #parm1=Send(victim,@GetName));
             }
+
             return FALSE;
          }
 
@@ -4138,8 +4151,7 @@ messages:
          return TRUE;
       }
 
-      % Truce itself returns TRUE, not counting as an attack. RadiusTotems
-      % send their inherent spell as a spell_obj for AllowPlayerAttack.
+      % Truce itself returns TRUE, not counting as an attack. 
       % Truce will only block actual attacks between two players who 
       % are both Truced.
       if spell_obj <> $
@@ -4502,6 +4514,15 @@ messages:
          return FALSE;
       }
 
+      % If this attack initiates pvp, notify victim (combatants maybe?) 
+      % initially, but then not again until PVP_NOTIFY_DECAY has passed
+      
+      if IsClass(what,&User) 
+         AND Send(what, @GetLastPvpWarned) < GetTime() - PVP_NOTIFY_DECAY
+      {
+         Send(what,@DoPvpNotify);
+      }
+      
       % Special stroke stuff 
       if NOT Send(stroke_obj,@CheckSpecial,#who=self,#victim=what)
       {
@@ -4773,6 +4794,7 @@ messages:
          AND NOT Send(poOwner,@LineOfSight,#obj1=self,#obj2=what)
          AND NOT (IsClass(self,&DM) AND Send(self,@PlayerIsImmortal))
       {
+         Send(self,@MsgSendUser,#message_rsc=bad_line_of_sight);
          iOffense = iOffense / 2;
       }
 
@@ -5457,14 +5479,17 @@ messages:
          }
       }
 
-      if IsClass(what,&Monster)
-         AND (use_weapon = $
-              OR NOT IsClass(use_weapon,&ActiveWallElement))
+      if pbLogged_on
       {
-         Send(self,@JoinBuilderGroup);
-      }
+         if IsClass(what,&Monster)
+            AND (use_weapon = $
+               OR NOT IsClass(use_weapon,&ActiveWallElement))
+         {
+            Send(self,@JoinBuilderGroup);
+         }
 
-      Send(poOwner,@SomethingKilled,#what=self,#victim=what);
+         Send(poOwner,@SomethingKilled,#what=self,#victim=what);
+      }
 
       % Let our shield know we killed something.
       oSoldierShield = Send(self,@FindUsing,#class=&SoldierShield);
@@ -6794,73 +6819,6 @@ messages:
       return piNodelist;
    }
 
-   LoseMana(amount = 0)
-   {
-      local iManaLost;
-
-      piMana = piMana - amount;
-      if piMana < 0
-      {
-         iManaLost = amount - abs(piMana);
-      }
-
-      Send(self,@NewMana);
-
-      return iManaLost;
-   }
-
-   GainMana(amount=0, bCapped=FALSE, bRespectMax=FALSE)
-   {
-      local iManaGained;
-
-      iManaGained = amount;
-
-      if NOT Send(self,@IsPhasedOut)
-      {
-         if bRespectMax
-            AND piMana + amount > piMax_mana
-         {
-            return 0;
-         }
-
-         piMana = piMana + amount;
-
-         if bCapped AND piMana > piMax_Mana
-         {
-            iManaGained = amount - (piMana - piMax_Mana);
-            piMana = piMax_Mana;
-         }
-      }
-
-      Send(self,@NewMana);
-
-      return iManaGained;
-   }
-
-   NewMana()
-   {
-      if piMana < 0
-      {
-         piMana = 0;
-      }
-
-      % Set a limit for maximum here in player? -BJG
-
-      if piMana <> piMax_mana AND ptMana = $
-      {
-         ptMana = CreateTimer(self,@ManaTimer,Send(self,@CalculateManaTime));
-      }
-
-      if piMana = piMax_mana AND ptMana <> $
-      {
-         DeleteTimer(ptMana);
-         ptMana = $;
-      }
-
-      Send(self,@DrawMana);
-
-      return;
-   }
 
    GetSpellList()
    {
@@ -6973,11 +6931,6 @@ messages:
    GetHealth()
    {
       return piHealth;
-   }
-
-   GetMana()
-   {
-      return piMana;
    }
 
    GetMight()
@@ -9385,7 +9338,6 @@ messages:
       return;
    }
 
-
    SetWindowOverlay(what = $)
    "Sends a message to the client about a window overlay, and adds <what> "
    "to plWindow_overlays."
@@ -9936,11 +9888,13 @@ messages:
                Send(oSoldierShield,@SlingOnBack,#report=FALSE);
                bSoldierShieldSlung = TRUE;
 
-               % Now restore the first-person view of other shield if we're using one
+               % Now restore the first-person view of other shield
+               % if we're using one
                for n in plUsing
                {
                   if (IsClass(n,&Shield)
-                     AND NOT IsClass(n,&SoldierShield))
+                     AND NOT IsClass(n,&SoldierShield)
+                     AND NOT IsClass(n,&Torch))
                   {
                      Send(self,@SetWindowOverlay,#what=n);
                   }
@@ -13961,7 +13915,17 @@ messages:
       {
          ptPhaseVisualEffectTimer = CreateTimer(self,@PhaseVisualEffectTimer,2000);
       }
-      
+
+      % Add phase time to piTimeAttackedPlayer if it is currently
+      % preventing the player from casting escape spells.
+      if Send(self,@GetLastPlayerAttackTime)
+            + Send(Send(SYS,@GetSettings),@TeleportAttackDelaySec)
+            > GetTime()
+      {
+         piTimeAttackedPlayer = piTimeAttackedPlayer
+                                 + (Send(self,@GetRemainingPhaseTime) / 1000);
+      }
+
       return;
    }
    
@@ -13972,7 +13936,7 @@ messages:
 
       return;
    }
-   
+
    PhaseVisualEffect()
    {
       if ptPhaseVisualEffectTimer <> $
@@ -14006,6 +13970,16 @@ messages:
             DeleteTimer(ptPhaseVisualEffectTimer);
             ptPhaseVisualEffectTimer = $;
          }
+      }
+
+      % If we added phase time to piTimeAttackedPlayer before,
+      % remove what is remaining (restore to original time).
+      if Send(self,@GetLastPlayerAttackTime)
+            + Send(Send(SYS,@GetSettings),@TeleportAttackDelaySec)
+            > GetTime()
+      {
+         piTimeAttackedPlayer = piTimeAttackedPlayer
+                                 - (Send(self,@GetRemainingPhaseTime) / 1000);
       }
 
       return;
@@ -14072,6 +14046,17 @@ messages:
    {
       piRemainingPhaseTime = amount;
 
+      % Logoff ghosts call this when the player returns, so we remove
+      % the phase time remaining from piTimeAttackedPlayer here if we
+      % added it when the user logged off.
+      if Send(self,@GetLastPlayerAttackTime)
+            + Send(Send(SYS,@GetSettings),@TeleportAttackDelaySec)
+            > GetTime()
+      {
+         piTimeAttackedPlayer = piTimeAttackedPlayer
+                                 - (Send(self,@GetRemainingPhaseTime) / 1000);
+      }
+
       return;
    }
 
@@ -14105,6 +14090,32 @@ messages:
    SetReagentBagAuto(value=TRUE)
    {
       pbReagentBagAuto = value;
+
+      return;
+   }
+   
+   GetLastPvpWarned()
+   {
+      return piTimeAttackedByPlayer;
+   }
+   
+   DoPvpNotify()
+   {
+      local oRoom;
+
+      % Don't gong if we are already in pvp
+      if piTimeAttackedPlayer < GetTime() - PVP_NOTIFY_DECAY
+      {
+         oRoom = Send(self, @GetOwner);
+         
+         if oRoom <> $
+         {
+            Send(oRoom, @SomethingWaveRoom, #what=self,
+               #wave_rsc=pvp_notify_wav);
+               
+            piTimeAttackedByPlayer = GetTime();
+         }
+      }
 
       return;
    }
