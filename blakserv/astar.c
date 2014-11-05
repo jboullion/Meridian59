@@ -77,7 +77,7 @@ int CreatePath(int startrow, int startcol, int endrow, int endcol, int roomid)
 	}
 
 	//build our path by following the endnode's parents to the startnode
-	while (endnode->parent != NULL)
+	while (endnode != NULL)
 	{
 		int coordinate_list;
 		//Create a list [ [ row, col ], [ row, col ], etc...]
