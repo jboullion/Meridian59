@@ -23,7 +23,6 @@ void CalculateHeuristic(astar_node *node, astar_path *path);
 void CalculateScore(astar_node *node, astar_path *path, bool diagonal);
 
 //linked list accessors
-void AddNodeToList(astar_node **head, astar_node *node);
 void DebugPrintList(astar_node *head); //print the list
 void InsertNodeToList(astar_node **head, astar_node *node); //keep the list insertion sorted as you create it
 void RemoveNodeFromList(astar_node **head, astar_node *node); //remove this node from this list
@@ -351,18 +350,5 @@ void DebugPrintList(astar_node *head)
 			current->row,current->col,current->movement_cost,current->heuristic_cost,current->score);
 		current = current->next;
 	}
-}
-void AddNodeToList(astar_node **head, astar_node *node)
-{
-	astar_node *current = *head;
-	if (*head == NULL) //first node
-	{
-		*head = node;
-		return;
-	}
-	while ( current != NULL ) 
-		current = current->next;
-	current->next = node;
-	return;
 }
 /*******************************************************************/
