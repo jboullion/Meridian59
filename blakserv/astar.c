@@ -142,7 +142,7 @@ void CreateGrid(astar_path *path)
 
 void DisplayGrid(astar_path *path)
 {
-	char *rowstring = (char *)AllocateMemory(MALLOC_ID_ASTAR,sizeof(char));
+	char *rowstring = (char *)AllocateMemory(MALLOC_ID_ASTAR,10000);
 	dprintf("start: %d,%d end: %d,%d",path->startrow,path->startcol,path->endrow,path->endcol);
 	for (int row = 1; row <= path->room->file_info.rows; row++)
 	{
@@ -156,7 +156,7 @@ void DisplayGrid(astar_path *path)
 		}
 		dprintf(rowstring);
 	}
-	FreeMemory(MALLOC_ID_ASTAR,rowstring,sizeof(char));
+	FreeMemory(MALLOC_ID_ASTAR,rowstring,10000);
 }
 
 void FreeGrid(astar_path *path)
