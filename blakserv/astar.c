@@ -40,8 +40,10 @@ void ScanNode(astar_node *startnode, astar_path *path);
 //Takes two objects, from and to (origin and target)
 int CreatePath(int startrow, int startcol, int endrow, int endcol, int roomid)
 {
-	//create our astar_path struct
+	int rows, cols, idxstart, idxend;
 	astar_path path;
+	astar_node *startnode, *endnode;
+
 	//gets the roomdata we need to use CanMoveInRoom()
 	path.room = GetRoomDataByID(roomid);
 	path.startrow = startrow;
@@ -53,16 +55,23 @@ int CreatePath(int startrow, int startcol, int endrow, int endcol, int roomid)
 	path.closed = NULL;
 	CreateGrid(&path); //creates our 2d grid of rows
 
-	astar_node *startnode = path.grid[startrow][startcol];
-	astar_node *endnode = path.grid[endrow][endcol];
+	rows = path.room->file_info.rows;
+	cols = path.room->file_info.cols;
+	
+	// rows and cols are 1-based here
+	idxstart = (startrow - 1) * cols + (startcol - 1);
+	idxend = (endrow - 1) * cols + (endcol - 1);
+
+	startnode = &path.grid[idxstart];
+	endnode = &path.grid[idxend];
 
 	//Calculate its values
-	CalculateScore(startnode,&path,false);
+	CalculateScore(startnode, &path, false);
 	//Add it to the open list
-	InsertNodeToList(&path.open,path.grid[startrow][startcol]);
+	InsertNodeToList(&path.open, startnode);
 
 	//Calculate scores and parents for all our nodes
-	while (!IsNodeOnList(path.closed,endnode))
+	while (!IsNodeOnList(path.closed, endnode))
 	{
 		//the lowest score node should always be the first item on the open list
 		astar_node *lowestscorenode = path.open;
@@ -71,9 +80,9 @@ int CreatePath(int startrow, int startcol, int endrow, int endcol, int roomid)
 			return NIL;
 		}
 		//remove it from the open list
-		RemoveNodeFromList(&path.open,lowestscorenode);
+		RemoveNodeFromList(&path.open, lowestscorenode);
 		//add it to the closed list
-		InsertNodeToList(&path.closed,lowestscorenode);
+		InsertNodeToList(&path.closed, lowestscorenode);
 		//scan it
 		ScanNode(lowestscorenode, &path);
 	}
@@ -126,32 +135,50 @@ int CreatePath(int startrow, int startcol, int endrow, int endcol, int roomid)
 
 void CreateGrid(astar_path *path)
 {
-	for (int row = 1; row <= path->room->file_info.rows; row++)
-		for (int col = 1 ; col <= path->room->file_info.cols; col++)
+	int rows = path->room->file_info.rows;
+	int cols = path->room->file_info.cols;
+	int size = rows * cols * sizeof(astar_node);
+	int idx = 0;
+	
+	// allocate
+	path->grid = (astar_node *)AllocateMemory(MALLOC_ID_ASTAR, size);
+
+	// initialize
+	for (int row = 0; row < rows; row++)
+	{
+		for (int col = 0 ; col < cols; col++)
 		{
-			path->grid[row][col] = (astar_node *)AllocateMemory(MALLOC_ID_ASTAR,sizeof(astar_node));
-			path->grid[row][col]->row = row;
-			path->grid[row][col]->col = col;
-			path->grid[row][col]->parent = NULL;
-			path->grid[row][col]->score = 0;
-			path->grid[row][col]->movement_cost = 0;
-			path->grid[row][col]->heuristic_cost = 0;
+			idx = row * cols + col;
+
+			path->grid[idx].row = row + 1;
+			path->grid[idx].col = col + 1;
+			path->grid[idx].parent = NULL;
+			path->grid[idx].score = 0;
+			path->grid[idx].movement_cost = 0;
+			path->grid[idx].heuristic_cost = 0;
 		}
+	}
 }
 
 void DisplayGrid(astar_path *path)
 {
+	int rows = path->room->file_info.rows;
+	int cols = path->room->file_info.cols;
+	int idx = 0;
+
 	char *rowstring = (char *)AllocateMemory(MALLOC_ID_ASTAR,10000);
 	dprintf("start: %d,%d end: %d,%d",path->startrow,path->startcol,path->endrow,path->endcol);
-	for (int row = 1; row <= path->room->file_info.rows; row++)
+	for (int row = 0; row < rows; row++)
 	{
 		sprintf(rowstring,"Row %3d- ",row);
-		for (int col = 1 ; col <= path->room->file_info.cols; col++)
+		for (int col = 0 ; col < cols; col++)
 		{
-			if (path->grid[row][col]->parent != NULL)
-				sprintf(rowstring,"%s|F=%3d;P=%3d,%3d|",rowstring,path->grid[row][col]->score,path->grid[row][col]->parent->row,path->grid[row][col]->parent->col);
+			idx = row * cols + col;
+
+			if (path->grid[idx].parent != NULL)
+				sprintf(rowstring,"%s|F=%3d;P=%3d,%3d|",rowstring,path->grid[idx].score,path->grid[idx].parent->row,path->grid[idx].parent->col);
 			else
-				sprintf(rowstring,"%s|F=%3d;P=NULL   |",rowstring,path->grid[row][col]->score);
+				sprintf(rowstring,"%s|F=%3d;P=NULL   |",rowstring,path->grid[idx].score);
 		}
 		dprintf(rowstring);
 	}
@@ -160,36 +187,51 @@ void DisplayGrid(astar_path *path)
 
 void FreeGrid(astar_path *path)
 {
-	for (int row = 1; row <= path->room->file_info.rows; row++)
-		for (int col = 1 ; col <= path->room->file_info.cols; col++)
-			FreeMemory(MALLOC_ID_ASTAR,path->grid[row][col],sizeof(astar_node));
+	int rows = path->room->file_info.rows;
+	int cols = path->room->file_info.cols;
+	int size = rows * cols * sizeof(astar_node);
+
+	FreeMemory(MALLOC_ID_ASTAR, path->grid, size);			
 }
 
 void ScanNode(astar_node *startnode, astar_path *path)
 {
+	int idx, row, col;
 	astar_node *currentnode;
-	if (startnode->row > path->room->file_info.rows ||
-		startnode->col > path->room->file_info.cols ||
+	int rows = path->room->file_info.rows;
+	int cols = path->room->file_info.cols;
+	
+	if (startnode->row > rows ||
+		startnode->col > cols ||
 		startnode->row < 1 ||
 		startnode->col < 1)
 	{
 		dprintf("startnode Row or Col outside bounds in ScanNoe()");
 		return;
 	}
+
 	for (int rowoffset = -1; rowoffset < 2; rowoffset++) //loop -1, 0, +1
 	{
 		for (int coloffset = -1; coloffset < 2; coloffset++) //loop -1, 0, +1
 		{
+			row = startnode->row + rowoffset;
+			col = startnode->col + coloffset;
+
 			//if the current node is outside the map boundary, skip it
-			if (startnode->row+rowoffset > path->room->file_info.rows ||
-				startnode->col+coloffset > path->room->file_info.cols ||
-				startnode->row+rowoffset < 1 ||
-				startnode->col+coloffset < 1)
+			if (row > rows ||
+				col > cols ||
+				row < 1 ||
+				col < 1)
 			{
 				continue;
 			}
+			
+			// row and col are 1-based here
+			idx = (row-1) * cols + (col-1);
+			
 			//grab our found node from the grid
-			currentnode = path->grid[startnode->row+rowoffset][startnode->col+coloffset];
+			currentnode = &path->grid[idx];
+			
 			//if the current node is null, skip.
 			if (currentnode == NULL)
 				continue;
