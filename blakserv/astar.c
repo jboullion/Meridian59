@@ -18,9 +18,9 @@
 
 //local prototypes
 //node calculations
-void CalculateMovementCost(astar_node * node, astar_path * path, bool diagonal);
-void CalculateHeuristic(astar_node * node, astar_path * path);
-void CalculateScore(astar_node * node, astar_path * path, bool diagonal);
+void CalculateMovementCost(astar_node *node, astar_path *path, bool diagonal);
+void CalculateHeuristic(astar_node *node, astar_path *path);
+void CalculateScore(astar_node *node, astar_path *path, bool diagonal);
 
 //linked list accessors
 void AddNodeToList(astar_node **head, astar_node *node);
@@ -36,7 +36,7 @@ void DisplayGrid(astar_path *path);
 void FreeGrid(astar_path *path);
 
 //pathfinding
-void ScanNode(astar_node *startnode, astar_path * path);
+void ScanNode(astar_node *startnode, astar_path *path);
 
 //Takes two objects, from and to (origin and target)
 int CreatePath(int startrow, int startcol, int endrow, int endcol, int roomid)
@@ -54,8 +54,8 @@ int CreatePath(int startrow, int startcol, int endrow, int endcol, int roomid)
 	path->closed = NULL;
 	CreateGrid(path); //creates our 2d grid of rows
 
-	astar_node * startnode = path->grid[startrow][startcol];
-	astar_node * endnode = path->grid[endrow][endcol];
+	astar_node *startnode = path->grid[startrow][startcol];
+	astar_node *endnode = path->grid[endrow][endcol];
 
 	//Calculate its values
 	CalculateScore(startnode,path,false);
@@ -66,7 +66,7 @@ int CreatePath(int startrow, int startcol, int endrow, int endcol, int roomid)
 	while (!IsNodeOnList(path->closed,endnode))
 	{
 		//the lowest score node should always be the first item on the open list
-		astar_node * lowestscorenode = path->open;
+		astar_node *lowestscorenode = path->open;
 		if (lowestscorenode == NULL) //If the open list is empty we don't have a path.
 		{
 			return NIL;
@@ -170,7 +170,7 @@ void FreeGrid(astar_path *path)
 
 void ScanNode(astar_node *startnode, astar_path *path)
 {
-	astar_node * currentnode;
+	astar_node *currentnode;
 	if (startnode->row > path->room->file_info.rows ||
 		startnode->col > path->room->file_info.cols ||
 		startnode->row < 1 ||
