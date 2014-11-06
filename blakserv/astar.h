@@ -15,11 +15,13 @@
 typedef struct astarnode_struct
 {
 	int row, col;
-	//MovementCost + HeuristicCost
+	//F = MovementCost + HeuristicCost 
 	int score;
-	//In order to calculate G (MovementCost), we need to take the G of its parent (the square where we came from) and to add 1 to it. Therefore, the G of each square will represent the total cost of the generated path from point A until the square).
+	//G = (MovementCost), we need to take the G of its parent (the square where we came from) and to add 10 to it. 
+	//Therefore, the G of each square will represent the total cost of the generated path from point A until the square).
 	int movement_cost; 
-	//To put it simply, we will use the “Manhattan distance method” (Also called “Manhattan length” or “city block distance”) that just counts the number of horizontal and vertical square remaining to reach point B without taking into account of any obstacles or differences of land.
+	//H = To put it simply, we will use the “Manhattan distance method” (Also called “Manhattan length” or “city block distance”) 
+	//that just counts the number of horizontal and vertical square remaining to reach point B without taking into account of any obstacles or differences of land.
 	int heuristic_cost;
 	//Next node on the path
 	astarnode_struct *parent;

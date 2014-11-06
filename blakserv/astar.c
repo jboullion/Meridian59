@@ -32,6 +32,7 @@ void PushNodeToList(astar_node **head, astar_node *node);
 
 //grid stuff
 void CreateGrid(astar_path *path);
+void DisplayGrid(astar_path *path);
 void FreeGrid(astar_path *path);
 
 //pathfinding
@@ -75,6 +76,8 @@ int CreatePath(int startrow, int startcol, int endrow, int endcol, int roomid)
 		//scan it
 		ScanNode(lowestscorenode, path);
 	}
+
+	DisplayGrid(path);
 
 	//build our path by following the endnode's parents to the startnode
 	while (endnode->parent != NULL)
@@ -130,7 +133,29 @@ void CreateGrid(astar_path *path)
 			path->grid[row][col]->row = row;
 			path->grid[row][col]->col = col;
 			path->grid[row][col]->parent = NULL;
+			path->grid[row][col]->score = 0;
+			path->grid[row][col]->movement_cost = 0;
+			path->grid[row][col]->heuristic_cost = 0;
 		}
+}
+
+void DisplayGrid(astar_path *path)
+{
+	char *rowstring = (char *)AllocateMemory(MALLOC_ID_ASTAR,sizeof(char));
+	dprintf("start: %d,%d end: %d,%d",path->startrow,path->startcol,path->endrow,path->endcol);
+	for (int row = 1; row <= path->room->file_info.rows; row++)
+	{
+		sprintf(rowstring,"Row %3d- ",row);
+		for (int col = 1 ; col <= path->room->file_info.cols; col++)
+		{
+			if (path->grid[row][col]->parent != NULL)
+				sprintf(rowstring,"%s|F=%3d;P=%3d,%3d|",rowstring,path->grid[row][col]->score,path->grid[row][col]->parent->row,path->grid[row][col]->parent->col);
+			else
+				sprintf(rowstring,"%s|F=%3d;P=NULL   |",rowstring,path->grid[row][col]->score);
+		}
+		dprintf(rowstring);
+	}
+	FreeMemory(MALLOC_ID_ASTAR,rowstring,sizeof(char));
 }
 
 void FreeGrid(astar_path *path)
@@ -144,19 +169,35 @@ void FreeGrid(astar_path *path)
 void ScanNode(astar_node *startnode, astar_path *path)
 {
 	astar_node * currentnode;
+	if (startnode->row > path->room->file_info.rows ||
+		startnode->col > path->room->file_info.cols ||
+		startnode->row < 1 ||
+		startnode->col < 1)
+	{
+		dprintf("startnode Row or Col outside bounds in ScanNoe()");
+		return;
+	}
 	for (int rowoffset = -1; rowoffset < 2; rowoffset++) //loop -1, 0, +1
 	{
 		for (int coloffset = -1; coloffset < 2; coloffset++) //loop -1, 0, +1
 		{
+			//if the current node is outside the map boundary, skip it
+			if (startnode->row+rowoffset > path->room->file_info.rows ||
+				startnode->col+coloffset > path->room->file_info.cols ||
+				startnode->row+rowoffset < 1 ||
+				startnode->col+coloffset < 1)
+			{
+				continue;
+			}
 			//grab our found node from the grid
 			currentnode = path->grid[startnode->row+rowoffset][startnode->col+coloffset];
-			//if the node is outside the map boundary, skip it
+			//if the current node is null, skip.
 			if (currentnode == NULL)
 				continue;
-			//if currentnode == starnode, skip it
+			//if currentnode == startnode, skip it
 			if (currentnode == startnode)
 				continue;
-			//if the node is on the current list, skip it
+			//if the node is on the closed list, skip it
 			if (IsNodeOnList(path->closed,currentnode))
 				continue;
 			//if we can move from startnode->row/col to currentnode->row/col
@@ -175,21 +216,40 @@ void ScanNode(astar_node *startnode, astar_path *path)
 				//if the node is alread on the open list see if the new parent is better than the old parent
 				else
 				{
-					//store the movement cost if we switched our parent to this one
-					int newmovementcost;
-					//if we are moving diagonally
-					if (rowoffset !=0 && coloffset !=0) 
-						newmovementcost = startnode->movement_cost + 14;
-					else
-						newmovementcost = startnode->movement_cost + 10;
-					//if new parent movement cost is lower, set it.
-					if (newmovementcost < currentnode->parent->movement_cost)
+					if (startnode->parent != NULL)
 					{
-						currentnode->parent = startnode;
-						CalculateScore(currentnode,path,(rowoffset !=0 && coloffset !=0));
-						//remove and re-add it to the open list, to keep the list sorted
-						RemoveNodeFromList(&path->open,currentnode);
-						InsertNodeToList(&path->open,currentnode);
+						//store the movement cost if we switched our parent to this one
+						int newmovementcost;
+						//if we are moving diagonally
+						if (rowoffset !=0 && coloffset !=0) 
+							newmovementcost = startnode->movement_cost + 14;
+						else
+							newmovementcost = startnode->movement_cost + 10;
+						//if new parent movement cost is lower, set it.
+						if (currentnode->parent !=NULL)
+						{
+							if (newmovementcost < currentnode->parent->movement_cost)
+							{
+								currentnode->parent = startnode;
+								CalculateScore(currentnode,path,(rowoffset !=0 && coloffset !=0));
+								//remove and re-add it to the open list, to keep the list sorted
+								RemoveNodeFromList(&path->open,currentnode);
+								InsertNodeToList(&path->open,currentnode);
+							}
+						}
+						else
+						{
+							dprintf("currentnode had NULL parent");
+							currentnode->parent = startnode;
+							CalculateScore(currentnode,path,(rowoffset !=0 && coloffset !=0));
+							//remove and re-add it to the open list, to keep the list sorted
+							RemoveNodeFromList(&path->open,currentnode);
+							InsertNodeToList(&path->open,currentnode);
+						}
+					}
+					else
+					{
+						dprintf("Parent is null?");
 					}
 				}
 			}
