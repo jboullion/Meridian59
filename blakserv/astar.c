@@ -165,7 +165,6 @@ void FreeGrid(astar_path *path)
 			FreeMemory(MALLOC_ID_ASTAR,path->grid[row][col],sizeof(astar_node));
 }
 
-
 void ScanNode(astar_node *startnode, astar_path *path)
 {
 	astar_node *currentnode;
@@ -257,7 +256,6 @@ void ScanNode(astar_node *startnode, astar_path *path)
 	}
 }
 
-
 /***********************Start: Node Calculations********************/
 void CalculateMovementCost(astar_node *node, astar_path *path, bool diagonal)
 {
@@ -285,6 +283,7 @@ void CalculateScore(astar_node *node, astar_path *path, bool diagonal)
 	CalculateHeuristic(node,path);
 	node->score = node->movement_cost + node->heuristic_cost;
 }
+
 /*******************************************************************/
 /***********************Start: List Functions***********************/
 //Adds the node at the beginning of the list
@@ -297,11 +296,10 @@ void PushNodeToList(astar_node **head, astar_node *node)
 //Insert into list where node->score fits in ascending order
 void InsertNodeToList(astar_node **head, astar_node *node)
 {
-
-	for ( ;*head; head = & (*head)->next)
+	for ( ; *head; head = &(*head)->next)
 	{
-			if ((*head)->score > node->score)
-				break;
+		if ((*head)->score > node->score)
+			break;
 	}
 	node->next = *head;
 	*head = node;
@@ -312,7 +310,7 @@ void RemoveNodeFromList(astar_node **head, astar_node *node)
 {
 	astar_node *current = NULL,
 			   *previous = NULL;
-	for (current = *head; current != NULL ;previous = current, current = current->next)
+	for (current = *head; current != NULL; previous = current, current = current->next)
 	{
 		if (current == node)
 		{
@@ -329,21 +327,22 @@ void RemoveNodeFromList(astar_node **head, astar_node *node)
 	}
 }
 
-
+//Check if a node is on a list
 bool IsNodeOnList(astar_node *head, astar_node *node)
 {
 	astar_node *current;
-	for (current = head; current != NULL ;current = current->next)
+	for (current = head; current != NULL; current = current->next)
 	{
 		if (current == node)
 			return true;
 	}
 	return false;
 }
+
 void DebugPrintList(astar_node *head)
 {
 	astar_node *current = head;
-	while ( current != NULL ) 
+	while (current != NULL) 
 	{
 		dprintf("node: row %d,col %d,movecost %d,heuristic %d,score %d\n",
 			current->row,current->col,current->movement_cost,current->heuristic_cost,current->score);
