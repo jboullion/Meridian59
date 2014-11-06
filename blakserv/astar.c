@@ -40,45 +40,45 @@ void ScanNode(astar_node *startnode, astar_path *path);
 //Takes two objects, from and to (origin and target)
 int CreatePath(int startrow, int startcol, int endrow, int endcol, int roomid)
 {
-	//create our astar_path struct and store pointer
-	astar_path *path = (astar_path *)AllocateMemory(MALLOC_ID_ASTAR,sizeof(astar_path)); 
+	//create our astar_path struct
+	astar_path path;
 	//gets the roomdata we need to use CanMoveInRoom()
-	path->room = GetRoomDataByID(roomid);
-	path->startrow = startrow;
-	path->startcol = startcol;
-	path->endrow = endrow;
-	path->endcol = endcol;
-	path->path_list_id = 0;
-	path->open = NULL;
-	path->closed = NULL;
-	CreateGrid(path); //creates our 2d grid of rows
+	path.room = GetRoomDataByID(roomid);
+	path.startrow = startrow;
+	path.startcol = startcol;
+	path.endrow = endrow;
+	path.endcol = endcol;
+	path.path_list_id = 0;
+	path.open = NULL;
+	path.closed = NULL;
+	CreateGrid(&path); //creates our 2d grid of rows
 
-	astar_node *startnode = path->grid[startrow][startcol];
-	astar_node *endnode = path->grid[endrow][endcol];
+	astar_node *startnode = path.grid[startrow][startcol];
+	astar_node *endnode = path.grid[endrow][endcol];
 
 	//Calculate its values
-	CalculateScore(startnode,path,false);
+	CalculateScore(startnode,&path,false);
 	//Add it to the open list
-	InsertNodeToList(&path->open,path->grid[startrow][startcol]);
+	InsertNodeToList(&path.open,path.grid[startrow][startcol]);
 
 	//Calculate scores and parents for all our nodes
-	while (!IsNodeOnList(path->closed,endnode))
+	while (!IsNodeOnList(path.closed,endnode))
 	{
 		//the lowest score node should always be the first item on the open list
-		astar_node *lowestscorenode = path->open;
+		astar_node *lowestscorenode = path.open;
 		if (lowestscorenode == NULL) //If the open list is empty we don't have a path.
 		{
 			return NIL;
 		}
 		//remove it from the open list
-		RemoveNodeFromList(&path->open,lowestscorenode);
+		RemoveNodeFromList(&path.open,lowestscorenode);
 		//add it to the closed list
-		InsertNodeToList(&path->closed,lowestscorenode);
+		InsertNodeToList(&path.closed,lowestscorenode);
 		//scan it
-		ScanNode(lowestscorenode, path);
+		ScanNode(lowestscorenode, &path);
 	}
 
-	DisplayGrid(path);
+	DisplayGrid(&path);
 
 	//build our path by following the endnode's parents to the startnode
 	while (endnode != NULL)
@@ -100,27 +100,26 @@ int CreatePath(int startrow, int startcol, int endrow, int endcol, int roomid)
 		first_val.v.tag = TAG_LIST;
 		first_val.v.data = coordinate_list;
 
-		if (path->path_list_id == 0)
+		if (path.path_list_id == 0)
 		{	
 			rest_val.v.tag = TAG_NIL; // if we dont yet have a superlist, create one
 		}
 		else
 		{
 			rest_val.v.tag = TAG_LIST;
-			rest_val.v.data = path->path_list_id; // or append to it if we do
+			rest_val.v.data = path.path_list_id; // or append to it if we do
 		}
-		path->path_list_id = Cons(first_val,rest_val); // add [row, col] to the superlist of coordinate pairs
+		path.path_list_id = Cons(first_val,rest_val); // add [row, col] to the superlist of coordinate pairs
 
 		endnode = endnode->parent;	
 	}
 	//so kod can interpret the list, tag it before returning it
 	val_type return_val;
 	return_val.v.tag = TAG_LIST;
-	return_val.v.data = path->path_list_id;
+	return_val.v.data = path.path_list_id;
 
 	//Finally, clean up our grid, our path object
-	FreeGrid(path);
-	FreeMemory(MALLOC_ID_ASTAR,path,sizeof(astar_path));
+	FreeGrid(&path);
 
 	return return_val.int_val;
 }
