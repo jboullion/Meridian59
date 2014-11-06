@@ -50,6 +50,8 @@ int CreatePath(int startrow, int startcol, int endrow, int endcol, int roomid)
 	path->endrow = endrow;
 	path->endcol = endcol;
 	path->path_list_id = 0;
+	path->open = NULL;
+	path->closed = NULL;
 	CreateGrid(path); //creates our 2d grid of rows
 
 	astar_node * startnode = path->grid[startrow][startcol];
