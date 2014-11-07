@@ -79,7 +79,6 @@ int CreatePath(int startrow, int startcol, int endrow, int endcol, int roomid)
 		astar_node *lowestscorenode = path.open;
 		if (lowestscorenode == NULL) //If the open list is empty the path is impossible.
 		{
-			dprintf("Impossible Path in CreatePath()");
 			//so free the memory
 			FreeGrid(&path);
 			//return NIL which signals Kod code to fall back to old style movement
