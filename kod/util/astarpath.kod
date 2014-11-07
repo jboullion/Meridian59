@@ -30,7 +30,6 @@ messages:
 
 Constructor(oFrom = $, oTo = $)
 {	
-	Debug("Constructor():oTo",oTo);
 	poFrom = oFrom;
 	poTo = oTo;
 	plPath = [];
@@ -41,11 +40,15 @@ Constructor(oFrom = $, oTo = $)
 	piEndRow = Send(oTo,@GetRow);
 	piEndCol = Send(oTo,@GetCol);
 	
-	if vbDebugItems
+	if vbDebugItems AND plDebugItems <> $
 	{
 		Send(self,@RemoveDebugItems);
 	}
 	plPath = CreateAstarPath(piStartRow,piStartCol,piEndRow,piEndCol,Send(poRoom,@GetRoomData));
+	if vbDebugItems
+	{
+		Send(self,@CreateDebugItems);
+	}
 
 	return;
 }
@@ -55,26 +58,30 @@ Recreate()
 	return;
 }
 
-%Checks if Destination has changed before calculating the next step, if so, starts over.
-%Used for Monster movement
+TargetMoved(row = $, col = $)
+"sent when we need to recalculate our path due to moving targets"
+{
+	plPath = [];
+	piStartRow = Send(poFrom,@GetRow);
+	piStartCol = Send(poFrom,@GetCol);
+	piEndRow = row;
+	piEndCol = col;
+	if vbDebugItems AND plDebugItems <> $
+	{
+		Send(self,@RemoveDebugItems);
+	}
+	plPath = CreateAstarPath(piStartRow,piStartCol,piEndRow,piEndCol,Send(poRoom,@GetRoomData));
+	if vbDebugItems
+	{
+		Send(self,@CreateDebugItems);
+	}
+	return;
+}
+
 CalculateStep(oTarget = $)
+"Returns the next step on the monster's path"
 {
 	local i; 
-	%check if we changed targets (monsters may have a new enemy, or the ally they are seeking
-	%may have been slain, etc.
-	if oTarget <> poTo
-	{
-		poTo = oTarget;
-		Debug("Re-Creating Path: Target Changed:",oTarget);
-		Send(self,@Constructor,#oFrom=poFrom,#oTo=poTo);
-	}
-	%check if the target changed position since our last move
-	%TODO:should we change this to make it less sensitive to target movement to allow less repeat-pathfinding?
-	if Send(oTarget,@GetRow) <> piEndRow or Send(oTarget,@GetCol) <> piEndCol
-	{
-		Debug("Re-Creating Path: Target Moved");
-		Send(self,@Constructor,#oFrom=poFrom,#oTo=poTo);
-	}
 	
 	%get the last item of the plPath list, or our first move
 	if plPath <> $
@@ -82,20 +89,18 @@ CalculateStep(oTarget = $)
 		i = First(plPath);
 		%remove that node from the list
 		plPath = DelListElem(plPath,i);
+		return i;
 	}
 	else %path not viable, or some other reason to move with the old system
 	{
-		i = $;
-	}
-	if vbDebugItems AND plPath <> $
-	{
-		Send(self,@CreateDebugItems);
+		return $;
 	}
 	
-	return i;
+	return $;
 }
 
 CreateDebugItems()
+"creates a line of apples showing the final path"
 {
 	local oDebugItem, i;
 	Debug("plPath:",plPath);
@@ -109,6 +114,7 @@ CreateDebugItems()
 }
 
 RemoveDebugItems()
+"removes debug apples"
 {
 	local i;
 	for i in plDebugItems
@@ -117,6 +123,11 @@ RemoveDebugItems()
 	}
 	plDebugItems = $;
 	return;
+}
+
+GetTarget()
+{
+	return poTo;
 }
 
 Delete()

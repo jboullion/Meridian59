@@ -34,6 +34,8 @@ void CreateGrid(astar_path *path);
 void DisplayGrid(astar_path *path);
 void FreeGrid(astar_path *path);
 
+bool astardebug = false;
+
 //pathfinding
 void ScanNode(astar_node *startnode, astar_path *path);
 
@@ -87,11 +89,16 @@ int CreatePath(int startrow, int startcol, int endrow, int endcol, int roomid)
 		ScanNode(lowestscorenode, &path);
 	}
 
-	DisplayGrid(&path);
+	if (astardebug)
+		DisplayGrid(&path);
 
 	//build our path by following the endnode's parents to the startnode
 	while (endnode != NULL)
 	{
+		if (endnode->parent == NULL) //we dont add the last item to the list
+		{
+			break;
+		}
 		int coordinate_list;
 		//Create a list [ [ row, col ], [ row, col ], etc...]
 		val_type first_val,rest_val;
@@ -119,8 +126,9 @@ int CreatePath(int startrow, int startcol, int endrow, int endcol, int roomid)
 			rest_val.v.data = path.path_list_id; // or append to it if we do
 		}
 		path.path_list_id = Cons(first_val,rest_val); // add [row, col] to the superlist of coordinate pairs
+		
 
-		endnode = endnode->parent;	
+		endnode = endnode->parent;
 	}
 	//so kod can interpret the list, tag it before returning it
 	val_type return_val;

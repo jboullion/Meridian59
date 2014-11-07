@@ -985,6 +985,13 @@ messages:
       {
          piState = (piState & VSTATE_VALIDITY_MASK);
       }
+	  if poAstarPath <> $ AND Send(Send(sys,@GetAstar),@Enabled)
+	  {
+		if what = Send(poAstarPath,@GetTarget)
+		{
+			Send(poAstarPath,@TargetMoved,#row=new_row,#col=new_col);
+		}
+	  }
 
       Send(poBrain,@SomethingMoved,#mob=self,#state=piState,
            #what=what,#new_row=new_row,#new_col=new_col);
@@ -6141,6 +6148,11 @@ messages:
       {
          Send(poOwner,@SomethingWaveRoom,#what=self,#wave_rsc=vrSound_aware);
       }
+	  
+	  if poAstarPath <> $ AND Send(Send(sys,@GetAstar),@Enabled)
+	  {
+		Send(poAstarPath,@Constructor,#oFrom=self,#oTo=what);
+	  }
 
       return;
    }
