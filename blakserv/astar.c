@@ -46,7 +46,7 @@ int CreatePath(int startrow, int startcol, int endrow, int endcol, int roomid)
 	astar_path path;
 	astar_node *startnode, *endnode;
 
-	//gets the roomdata we need to use CanMoveInRoomFine()
+	//gets the roomdata we need to use CanMoveInRoom()
 	path.room = GetRoomDataByID(roomid);
 	path.startrow = startrow;
 	path.startcol = startcol;
@@ -253,7 +253,7 @@ void ScanNode(astar_node *startnode, astar_path *path)
 			if (IsNodeOnList(path->closed,currentnode))
 				continue;
 			//if we can move from startnode->row/col to currentnode->row/col
-			if (CanMoveInRoomFine(path->room,startnode->row,startnode->col,currentnode->row,currentnode->col))
+			if (CanMoveInRoom(path->room,startnode->row,startnode->col,currentnode->row,currentnode->col))
 			{
 				//if the node is not on the open list
 				if (!IsNodeOnList(path->open,currentnode))
