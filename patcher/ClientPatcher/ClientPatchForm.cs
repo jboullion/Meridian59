@@ -190,10 +190,10 @@ namespace ClientPatcher
         }
         private void PostScan()
         {
-            if (_patcher.LocalFiles.Count > 0)
+            if (_patcher.ChangedFiles.Count > 0)
             {
                 pbProgress.Value = 0;
-                pbProgress.Maximum = _patcher.LocalFiles.Count;
+                pbProgress.Maximum = _patcher.ChangedFiles.Count;
                 pbFileProgress.Visible = true;
                 bgDownloadWorker.RunWorkerAsync(_patcher);
             }
@@ -277,11 +277,6 @@ namespace ClientPatcher
             }
         }
         #endregion
-
-        private void btnGenerateCache_Click(object sender, EventArgs e)
-        {
-            _patcher.GenerateCache();
-        }
 
         
 

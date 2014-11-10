@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using Newtonsoft.Json;
 using PatchListGenerator;
@@ -68,7 +69,9 @@ namespace ClientPatcher
         private string _patchInfoJason = "";
 
         public List<ManagedFile> PatchFiles; //Loaded from the web server at PatchInfoURL
-        public List<ManagedFile> LocalFiles; //Loaded with files that do NOT match
+        public List<ManagedFile> ChangedFiles; //Loaded with files that do NOT match
+        public List<ManagedFile> LocalCachedFiles; //Loaded with hashes from cache.txt to prevent the need to scan each time
+ 
         public WebClient MyWebClient;
 
         bool _continueAsync;
@@ -108,15 +111,17 @@ namespace ClientPatcher
 
         public ClientPatcher()
         {
-            LocalFiles = new List<ManagedFile>();
+            ChangedFiles = new List<ManagedFile>();
             MyWebClient = new WebClient();
         }
+
         public ClientPatcher(PatcherSettings settings)
         {
-            LocalFiles = new List<ManagedFile>();
+            ChangedFiles = new List<ManagedFile>();
             MyWebClient = new WebClient();
             CurrentProfile = settings;
         }
+
         public int DownloadJson()
         {
             var wc = new WebClient();
@@ -128,14 +133,27 @@ namespace ClientPatcher
             }
             catch (WebException e)
             {
-                Console.WriteLine("WebException Handler: {0}", e.ToString());
+                Console.WriteLine("WebException Handler: {0}", e);
                 return 0;
+            }
+        }
+
+        private void FillCache()
+        {
+            using (var sr = new StreamReader(CurrentProfile.ClientFolder + "\\cache.txt"))
+            {
+                LocalCachedFiles = JsonConvert.DeserializeObject<List<ManagedFile>>(sr.ReadToEnd());
             }
         }
 
         private bool IsNewClient()
         {
             return !File.Exists(CurrentProfile.ClientFolder + "\\meridian.ini");
+        }
+
+        private bool HasCache()
+        {
+            return File.Exists(CurrentProfile.ClientFolder + "\\cache.txt");
         }
 
         private void CreateFolderStructure()
@@ -161,7 +179,8 @@ namespace ClientPatcher
         {
             try
             {
-                const string defaultIni = @"[Comm]
+                const string defaultIni = 
+@"[Comm]
 ServerNumber=103
 [Miscellaneous]
 UserName=username
@@ -193,35 +212,51 @@ Download=10016
             {
                 CreateNewClient();
             }
-
-            foreach (ManagedFile patchFile in PatchFiles)
+            if (HasCache())
             {
-                string fullpath = CurrentProfile.ClientFolder + patchFile.Basepath + patchFile.Filename;
-                FileScanned(this, new ScanEventArgs(patchFile.Filename)); //Tells the form to update the progress bar
-                var localFile = new ManagedFile(fullpath);
-                localFile.ComputeHash();
-                if (patchFile.MyHash != localFile.MyHash)
+                FillCache();
+                foreach (ManagedFile patchFile in PatchFiles)
                 {
-                    LocalFiles.Add(localFile);
-                    localFile.Length = patchFile.Length;
+                    var localfile = LocalCachedFiles.First(x => x.Filename == patchFile.Filename);
+                    if (localfile.MyHash != patchFile.MyHash)
+                    {
+                        localfile.Length = patchFile.Length;
+                        localfile.Filepath = CurrentProfile.ClientFolder + patchFile.Basepath + patchFile.Filename;
+                        ChangedFiles.Add(localfile);
+                    }
+                    FileScanned(this, new ScanEventArgs(patchFile.Filename));
                 }
             }
-        }
-
-        public void GenerateCache()
-        {
-            string fullpath = CurrentProfile.ClientFolder;
-            var scanner = new ClientScanner(fullpath);
-            scanner.ScanSource();
-            using (var sw = new StreamWriter(fullpath + "\\cache.txt"))
+            else
             {
-                sw.Write(scanner.ToJson());
+                LocalCachedFiles = new List<ManagedFile>();
+
+                foreach (ManagedFile patchFile in PatchFiles)
+                {
+                    string fullpath = CurrentProfile.ClientFolder + patchFile.Basepath + patchFile.Filename;
+                    var localFile = new ManagedFile(fullpath);
+                    localFile.ComputeHash();
+                    if (patchFile.MyHash != localFile.MyHash)
+                    {
+                        localFile.Length = patchFile.Length;
+                        localFile.Filepath = CurrentProfile.ClientFolder + patchFile.Basepath + patchFile.Filename;
+                        ChangedFiles.Add(localFile);
+                    }
+                    LocalCachedFiles.Add(localFile);
+                    //Tells the form to update the progress bar
+                    FileScanned(this, new ScanEventArgs(patchFile.Filename));
+                }
+                //write cache.txt filled with JSON encoded ManagedFile objects
+                using (var sw = new StreamWriter(CurrentProfile.ClientFolder + "\\cache.txt"))
+                {
+                    sw.Write(JsonConvert.SerializeObject(LocalCachedFiles, Formatting.Indented));
+                }
             }
         }
 
         public void DownloadFiles()
         {
-            foreach (ManagedFile file in LocalFiles)
+            foreach (ManagedFile file in ChangedFiles)
             {
                 string temp = file.Basepath.Replace("\\", "/");
                 try
@@ -231,14 +266,14 @@ Download=10016
                 }
                 catch (WebException e)
                 {
-                    Console.WriteLine("WebException Handler: {0}", e.ToString());
+                    Console.WriteLine("WebException Handler: {0}", e);
                     return;
                 }
             }
         }
         public void DownloadFilesAsync()
         {
-            foreach (ManagedFile file in LocalFiles)
+            foreach (ManagedFile file in ChangedFiles)
             {
                 string temp = file.Basepath.Replace("\\", "/");
                 StartedDownload(this, new StartDownloadEventArgs(file.Filename, file.Length));
@@ -248,6 +283,14 @@ Download=10016
                     //Wait for the previous file to finish
                     Thread.Sleep(10);
                 }
+                //update the cache.txt list with the new file hash
+                var localfile = LocalCachedFiles.First(x => x.Filename == file.Filename);
+                localfile.ComputeHash();
+            }
+            //write updated cache.txt filled with JSON encoded ManagedFile objects
+            using (var sw = new StreamWriter(CurrentProfile.ClientFolder + "\\cache.txt"))
+            {
+                sw.Write(JsonConvert.SerializeObject(LocalCachedFiles, Formatting.Indented));
             }
         }
         public void DownloadFileAsync(string url, string path)
@@ -262,7 +305,7 @@ Download=10016
                 }
                 catch (WebException e)
                 {
-                    Console.WriteLine(String.Format("Exception: {0}", e.ToString()));
+                    Console.WriteLine("Exception: {0}", e);
                 }
                 _continueAsync = false;
             }
