@@ -57,23 +57,24 @@
             this.btnOptions = new System.Windows.Forms.Button();
             this.bgScanWorker = new System.ComponentModel.BackgroundWorker();
             this.bgDownloadWorker = new System.ComponentModel.BackgroundWorker();
+            this.btnVerifyFiles = new System.Windows.Forms.Button();
             this.gbOptions.SuspendLayout();
             this.groupProfileSettings.SuspendLayout();
             this.SuspendLayout();
             // 
             // pbProgress
             // 
-            this.pbProgress.Location = new System.Drawing.Point(7, 373);
+            this.pbProgress.Location = new System.Drawing.Point(7, 377);
             this.pbProgress.Name = "pbProgress";
-            this.pbProgress.Size = new System.Drawing.Size(706, 32);
+            this.pbProgress.Size = new System.Drawing.Size(725, 32);
             this.pbProgress.Step = 1;
             this.pbProgress.TabIndex = 0;
             // 
             // btnPlay
             // 
-            this.btnPlay.Location = new System.Drawing.Point(727, 339);
+            this.btnPlay.Location = new System.Drawing.Point(15, 231);
             this.btnPlay.Name = "btnPlay";
-            this.btnPlay.Size = new System.Drawing.Size(95, 70);
+            this.btnPlay.Size = new System.Drawing.Size(172, 48);
             this.btnPlay.TabIndex = 1;
             this.btnPlay.Text = "Play!";
             this.btnPlay.UseVisualStyleBackColor = true;
@@ -93,7 +94,7 @@
             this.ddlServer.FormattingEnabled = true;
             this.ddlServer.Location = new System.Drawing.Point(15, 57);
             this.ddlServer.Name = "ddlServer";
-            this.ddlServer.Size = new System.Drawing.Size(277, 21);
+            this.ddlServer.Size = new System.Drawing.Size(169, 21);
             this.ddlServer.TabIndex = 4;
             this.ddlServer.SelectionChangeCommitted += new System.EventHandler(this.ddlServer_SelectionChangeCommitted);
             // 
@@ -109,9 +110,9 @@
             // 
             // btnPatch
             // 
-            this.btnPatch.Location = new System.Drawing.Point(15, 134);
+            this.btnPatch.Location = new System.Drawing.Point(12, 134);
             this.btnPatch.Name = "btnPatch";
-            this.btnPatch.Size = new System.Drawing.Size(279, 46);
+            this.btnPatch.Size = new System.Drawing.Size(172, 46);
             this.btnPatch.TabIndex = 7;
             this.btnPatch.Text = "Update/Install";
             this.btnPatch.UseVisualStyleBackColor = true;
@@ -129,11 +130,12 @@
             // 
             // gbOptions
             // 
+            this.gbOptions.Controls.Add(this.btnVerifyFiles);
             this.gbOptions.Controls.Add(this.groupProfileSettings);
             this.gbOptions.Controls.Add(this.btnStartModify);
             this.gbOptions.Controls.Add(this.btnRemove);
             this.gbOptions.Controls.Add(this.btnAdd);
-            this.gbOptions.Location = new System.Drawing.Point(300, 12);
+            this.gbOptions.Location = new System.Drawing.Point(210, 9);
             this.gbOptions.Name = "gbOptions";
             this.gbOptions.Size = new System.Drawing.Size(522, 321);
             this.gbOptions.TabIndex = 10;
@@ -288,7 +290,7 @@
             // 
             // txtLog
             // 
-            this.txtLog.Location = new System.Drawing.Point(298, 13);
+            this.txtLog.Location = new System.Drawing.Point(208, 8);
             this.txtLog.Multiline = true;
             this.txtLog.Name = "txtLog";
             this.txtLog.ReadOnly = true;
@@ -300,7 +302,7 @@
             // 
             this.pbFileProgress.Location = new System.Drawing.Point(7, 339);
             this.pbFileProgress.Name = "pbFileProgress";
-            this.pbFileProgress.Size = new System.Drawing.Size(706, 32);
+            this.pbFileProgress.Size = new System.Drawing.Size(725, 32);
             this.pbFileProgress.TabIndex = 12;
             this.pbFileProgress.Visible = false;
             // 
@@ -324,11 +326,21 @@
             this.bgDownloadWorker.DoWork += new System.ComponentModel.DoWorkEventHandler(this.bgDownloadWorker_DoWork);
             this.bgDownloadWorker.RunWorkerCompleted += new System.ComponentModel.RunWorkerCompletedEventHandler(this.bgDownloadWorker_RunWorkerCompleted);
             // 
+            // btnVerifyFiles
+            // 
+            this.btnVerifyFiles.Location = new System.Drawing.Point(120, 80);
+            this.btnVerifyFiles.Name = "btnVerifyFiles";
+            this.btnVerifyFiles.Size = new System.Drawing.Size(107, 23);
+            this.btnVerifyFiles.TabIndex = 4;
+            this.btnVerifyFiles.Text = "Verify Files";
+            this.btnVerifyFiles.UseVisualStyleBackColor = true;
+            this.btnVerifyFiles.Click += new System.EventHandler(this.btnVerifyFiles_Click);
+            // 
             // ClientPatchForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(834, 417);
+            this.ClientSize = new System.Drawing.Size(741, 418);
             this.Controls.Add(this.btnOptions);
             this.Controls.Add(this.pbFileProgress);
             this.Controls.Add(this.gbOptions);
@@ -343,6 +355,7 @@
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Name = "ClientPatchForm";
             this.Text = "OpenMeridian Client Patcher";
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.ClientPatchForm_FormClosing);
             this.Load += new System.EventHandler(this.Form1_Load);
             this.gbOptions.ResumeLayout(false);
             this.groupProfileSettings.ResumeLayout(false);
@@ -382,6 +395,7 @@
         private System.Windows.Forms.Button btnOptions;
         private System.ComponentModel.BackgroundWorker bgScanWorker;
         private System.ComponentModel.BackgroundWorker bgDownloadWorker;
+        private System.Windows.Forms.Button btnVerifyFiles;
     }
 }
 

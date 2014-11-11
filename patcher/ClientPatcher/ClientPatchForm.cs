@@ -45,6 +45,11 @@ namespace ClientPatcher
 
         private void btnPlay_Click(object sender, EventArgs e)
         {
+            Play();
+        }
+
+        private void Play()
+        {
             var meridian = new ProcessStartInfo
             {
                 FileName = _patcher.CurrentProfile.ClientFolder + "\\meridian.exe",
@@ -52,7 +57,7 @@ namespace ClientPatcher
                 //TODO: add ability to enter username and password during patching
                 //meridian.Arguments = "/U:username /P:password /H:host";
             };
-           
+
             Process.Start(meridian);
             Application.Exit();
         }
@@ -129,10 +134,15 @@ namespace ClientPatcher
             gbOptions.Visible = !gbOptions.Visible;
         }
 
+        private void btnVerifyFiles_Click(object sender, EventArgs e)
+        {
+            _patcher.GenerateCacheFromScan();
+        }
+
         private void Patcher_FileScanned(object sender, ScanEventArgs e)
         {
             PbProgressPerformStep();
-            TxtLogAppendText(String.Format("Scanning Files.... {0}\r\n", e.Filename));
+            //TxtLogAppendText(String.Format("Scanning Files.... {0}\r\n", e.Filename));
         }
         private void Patcher_StartedDownload(object sender, StartDownloadEventArgs e)
         {
@@ -277,6 +287,14 @@ namespace ClientPatcher
             }
         }
         #endregion
+
+        private void ClientPatchForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            _patcher.WriteCacheToFile();
+            _settings.SaveSettings();
+        }
+
+
 
         
 

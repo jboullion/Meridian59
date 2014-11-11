@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using Newtonsoft.Json;
@@ -138,7 +139,7 @@ namespace ClientPatcher
             }
         }
 
-        private void FillCache()
+        private void FillCacheFromFile()
         {
             using (var sr = new StreamReader(CurrentProfile.ClientFolder + "\\cache.txt"))
             {
@@ -214,44 +215,90 @@ Download=10016
             }
             if (HasCache())
             {
-                FillCache();
-                foreach (ManagedFile patchFile in PatchFiles)
-                {
-                    var localfile = LocalCachedFiles.First(x => x.Filename == patchFile.Filename);
-                    if (localfile.MyHash != patchFile.MyHash)
-                    {
-                        localfile.Length = patchFile.Length;
-                        localfile.Filepath = CurrentProfile.ClientFolder + patchFile.Basepath + patchFile.Filename;
-                        ChangedFiles.Add(localfile);
-                    }
-                    FileScanned(this, new ScanEventArgs(patchFile.Filename));
-                }
+                FillCacheFromFile();
+                CheckCachedFiles();
             }
             else
             {
-                LocalCachedFiles = new List<ManagedFile>();
-
-                foreach (ManagedFile patchFile in PatchFiles)
-                {
-                    string fullpath = CurrentProfile.ClientFolder + patchFile.Basepath + patchFile.Filename;
-                    var localFile = new ManagedFile(fullpath);
-                    localFile.ComputeHash();
-                    if (patchFile.MyHash != localFile.MyHash)
-                    {
-                        localFile.Length = patchFile.Length;
-                        localFile.Filepath = CurrentProfile.ClientFolder + patchFile.Basepath + patchFile.Filename;
-                        ChangedFiles.Add(localFile);
-                    }
-                    LocalCachedFiles.Add(localFile);
-                    //Tells the form to update the progress bar
-                    FileScanned(this, new ScanEventArgs(patchFile.Filename));
-                }
-                //write cache.txt filled with JSON encoded ManagedFile objects
-                using (var sw = new StreamWriter(CurrentProfile.ClientFolder + "\\cache.txt"))
-                {
-                    sw.Write(JsonConvert.SerializeObject(LocalCachedFiles, Formatting.Indented));
-                }
+                GenerateCacheFromScan();
+                CheckPatchListFiles();
             }
+        }
+
+        public void GenerateCacheFromScan()
+        {
+            var start = DateTime.Now;
+            var scanner = new ClientScanner(CurrentProfile.ClientFolder);
+            scanner.ScanSource();
+            LocalCachedFiles = scanner.Files;
+            WriteCacheToFile();
+            Debug.Print((DateTime.Now - start).ToString());
+        }
+
+        public void UpdateCacheFromPatch()
+        {
+            foreach (ManagedFile file in PatchFiles)
+            {
+                UpdateSingleFileCache(file);
+            }
+        }
+
+        public void UpdateSingleFileCache(ManagedFile file)
+        {
+            var localFile = LocalCachedFiles.FirstOrDefault(x => x.Filepath == file.Filepath);
+            if (localFile != null)
+            {
+                localFile.ComputeHash();
+            }
+            else
+            {
+                LocalCachedFiles.Add(file);
+                file.ComputeHash();
+            }
+        }
+
+        public void WriteCacheToFile()
+        {
+            using (var sw = new StreamWriter(CurrentProfile.ClientFolder + "\\cache.txt"))
+            {
+                sw.Write(JsonConvert.SerializeObject(LocalCachedFiles, Formatting.Indented));
+            }
+        }
+
+        private void CheckPatchListFiles()
+        {
+            foreach (ManagedFile patchFile in PatchFiles)
+            {
+                string fullpath = CurrentProfile.ClientFolder + patchFile.Basepath + patchFile.Filename;
+                var localFile = new ManagedFile(fullpath);
+                localFile.ComputeHash();
+                if (patchFile.MyHash != localFile.MyHash)
+                {
+                    localFile.Length = patchFile.Length;
+                    localFile.Filepath = CurrentProfile.ClientFolder + patchFile.Basepath + patchFile.Filename;
+                    ChangedFiles.Add(localFile);
+                }
+                //Tells the form to update the progress bar
+                FileScanned(this, new ScanEventArgs(patchFile.Filename));
+            }
+            UpdateCacheFromPatch();
+        }
+
+        private void CheckCachedFiles()
+        {
+            foreach (ManagedFile patchFile in PatchFiles)
+            {
+                var localFile = LocalCachedFiles.FirstOrDefault(x => x.Filename == patchFile.Filename);
+                if (localFile.MyHash != patchFile.MyHash)
+                {
+                    localFile.Length = patchFile.Length;
+                    localFile.Filepath = CurrentProfile.ClientFolder + patchFile.Basepath + patchFile.Filename;
+                    ChangedFiles.Add(localFile);
+                }
+                //Tells the form to update the progress bar
+                FileScanned(this, new ScanEventArgs(patchFile.Filename));
+            }
+            UpdateCacheFromPatch();
         }
 
         public void DownloadFiles()
@@ -271,6 +318,7 @@ Download=10016
                 }
             }
         }
+
         public void DownloadFilesAsync()
         {
             foreach (ManagedFile file in ChangedFiles)
@@ -283,16 +331,11 @@ Download=10016
                     //Wait for the previous file to finish
                     Thread.Sleep(10);
                 }
-                //update the cache.txt list with the new file hash
-                var localfile = LocalCachedFiles.First(x => x.Filename == file.Filename);
-                localfile.ComputeHash();
+                UpdateSingleFileCache(file);
             }
-            //write updated cache.txt filled with JSON encoded ManagedFile objects
-            using (var sw = new StreamWriter(CurrentProfile.ClientFolder + "\\cache.txt"))
-            {
-                sw.Write(JsonConvert.SerializeObject(LocalCachedFiles, Formatting.Indented));
-            }
+            WriteCacheToFile();
         }
+
         public void DownloadFileAsync(string url, string path)
         {
             using (var client = new WebClient())
@@ -316,6 +359,7 @@ Download=10016
             OnEndDownload(e);
             _continueAsync = true;
         }
+
         private void client_DownloadProgressChanged(object sender, DownloadProgressChangedEventArgs e)
         {
             OnProgressedDownload(e);
