@@ -192,6 +192,8 @@ properties:
    piRoom_num
    piRows
    piCols
+   piRowsHighRes
+   piColsHighRes
 
    piSecurity
 
@@ -1089,6 +1091,8 @@ messages:
       piRows = First(lRoom_data);
       piCols = Nth(lRoom_data,2);
       piSecurity = Nth(lRoom_data,3);
+      piRowsHighRes = Nth(lRoom_data,4);
+      piColsHighRes = Nth(lRoom_data,5);
 
       return;
    }
@@ -1133,6 +1137,16 @@ messages:
       return piCols;
    }
 
+   GetRoomRowsHighRes()
+   {
+      return piRowsHighRes;
+   }
+
+   GetRoomColsHighRes()
+   {
+      return piColsHighRes;
+   }
+   
    GetRoomBackground()
    {
       return prBackground;
@@ -2116,12 +2130,12 @@ messages:
    }
 
    ReqSomethingMoved(what = $, new_row = $, new_col = $, entering_room = FALSE,
-                     dir = $, server_validate = TRUE)
+                     dir = $, server_validate = TRUE, new_finerow = $, new_finecol = $)
    "Ask if possible for <what> to move to <new_row>,<new_col>. "
    "<server_validate> is set to false for user moves, which have already been "
    "checked by client (HAHA!)."
    {
-      local i, each_obj, iRow, iCol, iLOS;
+      local i, each_obj, iRow, iCol, iFineRow, iFineCol, iLOS;
 
       if new_row > piRows OR new_row < 1 OR new_col > piCols OR new_col < 1
       {
@@ -2129,11 +2143,37 @@ messages:
          % go between rooms in RoomObjOffGrid
          return TRUE;
       }
+        
+      % if the caller didn't provide his fine values
+	  % we pick the center of the square for him, however his source position
+	  % then also has to be the center of his current square and not his fine values
+	  iFineRow = 0;
+	  iFineCol = 0;
+      if new_finerow = $ OR new_finecol = $
+      {
+        new_finerow = FINENESS_HALF;
+		new_finecol = FINENESS_HALF;
+		iFineRow = FINENESS_HALF;
+	    iFineCol = FINENESS_HALF;
+      }
 
       if Send(what,@GetOwner) = self AND Send(self,@IsHolding,#what=what)
       {
+         % get position of object to move
          iRow = Send(what,@GetRow);
          iCol = Send(what,@GetCol);
+		 
+		 % as stated above, only use fine values if
+		 % defaults were not used
+		 if iFineRow = 0
+		 {
+		   iFineRow = Send(what,@GetFineRow);
+		 } 
+		 
+		 if iFineCol = 0
+		 {
+           iFineCol = Send(what,@GetFineCol);
+		 }
       }
       else
       {
@@ -2175,24 +2215,16 @@ messages:
 
       if server_validate
       {
-         iLOS = Send(Send(SYS, @GetSettings), @GetLOS);
+		 if NOT CanMoveInRoomHighRes(prmRoom,iRow,iCol,iFineRow,iFineCol,new_row,new_col,new_finerow,new_finecol)
+         {
+           return FALSE;
+         }
+		 
+         % iLOS = Send(Send(SYS, @GetSettings), @GetLOS);
 
-         if iLOS = LOS_NEW_BOTH
-            OR (iLOS = LOS_NEW_MONSTER AND IsClass(what,&Monster))
-            OR (iLOS = LOS_NEW_PLAYER AND IsClass(what,&Player))
-         {
-            if NOT CanMoveInRoomFine(prmRoom,iRow,iCol,new_row,new_col)
-            {
-               return FALSE;
-            }
-         }
-         else
-         {
-            if NOT CanMoveInRoom(prmRoom,iRow,iCol,new_row,new_col)
-            {
-               return FALSE;
-            }
-         }
+         % if iLOS = LOS_NEW_BOTH
+         %    OR (iLOS = LOS_NEW_MONSTER AND IsClass(what,&Monster))
+         %    OR (iLOS = LOS_NEW_PLAYER AND IsClass(what,&Player))                 
       }
 
       propagate;
@@ -2201,6 +2233,29 @@ messages:
    LineOfSight(obj1 = $, obj2 = $)
    "Returns TRUE if there is a line of sight between obj1 and obj2"
    {
+     local r;
+     
+     % First check if obj1 can walk on a direct path to obj2.
+     % If we can't move there, we assume vision through this
+     % location is blocked as well.  This assumption is violated
+     % by, for example, fences and altitude changes in the floor.
+
+     r = Send(self,@LineOfSightInternal,#obj1=obj1,#obj2=obj2);
+
+     % we also possibly check the other way around,
+     % because if obj2 somehow DOES have LoS with obj1,
+     % obj1 also must have LoS with obj2.
+     % This makes sure LoS is handled equally (fair) for both.
+     if r = FALSE
+     {
+       r = Send(self,@LineOfSightInternal,#obj1=obj2,#obj2=obj1);
+     }
+
+     return r;
+   }
+   
+   LineOfSightInternal(obj1 = $, obj2 = $)
+   {
       local r, c, r2, c2, iRow, iCol, iRSign, iCSign, iLOS;
 
       if Send(obj1,@GetOwner) <> Send(obj2,@GetOwner)
@@ -2208,8 +2263,9 @@ messages:
          return FALSE;
       }
 
-      r = Send(obj1,@GetRow);
-      c = Send(obj1,@GetCol);
+      % get obj1 coordinates in highres squares
+      r = ((Send(obj1,@GetRow) * 64) + Send(obj1,@GetFineRow)) / 16;
+      c = ((Send(obj1,@GetCol) * 64) + Send(obj1,@GetFineCol)) / 16;
 
       if r = $ OR c = $
       {
@@ -2220,8 +2276,11 @@ messages:
 
       r2 = r;
       c2 = c;
-      iRow = Send(obj2,@GetRow);
-      iCol = Send(obj2,@GetCol);
+
+      % get obj2 coordinates in highres squares
+      iRow = ((Send(obj2,@GetRow) * 64) + Send(obj2,@GetFineRow)) / 16;
+      iCol = ((Send(obj2,@GetCol) * 64) + Send(obj2,@GetFineCol)) / 16;
+      
       if iRow = $ OR iCol = $
       {
          Debug("Can't get row or column for",obj2,Send(obj2,@GetTrueName),"in",Send(self,@GetName));
@@ -2247,7 +2306,10 @@ messages:
          iCSign = -1;
       }
 
-      while r <> iRow OR c <> iCol
+      % we don't care about the last step to eliminate safe-spots
+      % this might allow a creature to hit through a wall if
+      % its target is on an adjacent highres square (unlikely?)
+      while abs(r-iRow) > 1 OR abs(c-iCol) > 1
       {
          % Generate new location to test
          if abs(r-iRow) > abs(c-iCol)
@@ -2259,28 +2321,13 @@ messages:
             c2 = c2 + iCSign;
          }
 
-         % If we can't move there, we assume vision through this
-         %  location is blocked as well.  This assumption is violated
-         %  by, for example, fences and altitude changes in the floor.
-
-         iLOS = Send(Send(SYS, @GetSettings), @GetLOS);
-
-         % Making the assumption that obj1 is the "doer" in this case.
-         if iLOS = LOS_NEW_BOTH
-            OR (iLOS = LOS_NEW_MONSTER AND IsClass(obj1,&Monster))
-            OR (iLOS = LOS_NEW_PLAYER AND IsClass(obj1,&Player))
+         % these calculations turn the highres values back into row/finerow
+         % remember: 4 highres rows give a row, and a highres row has 16 finerows 
+         if NOT CanMoveInRoomHighRes(prmRoom,
+                    (r / 4), (c / 4), ((r MOD 4) * 16), ((c MOD 4) * 16),
+                    (r2 / 4) , (c2 / 4), ((r2 MOD 4) * 16), ((c2 MOD 4) * 16))
          {
-            if NOT CanMoveInRoomFine(prmRoom,r,c,r2,c2)
-            {
-               return FALSE;
-            }
-         }
-         else
-         {
-            if NOT CanMoveInRoom(prmRoom,r,c,r2,c2)
-            {
-               return FALSE;
-            }
+           return FALSE;
          }
 
          r = r2;

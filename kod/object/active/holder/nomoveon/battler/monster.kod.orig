@@ -900,7 +900,7 @@ messages:
       }
       else
       {
-         ptBehavior = CreateTimer(self,@ChaseTimer,Send(self,@GetChaseTime));
+         ptBehavior = CreateTimer(self,@ChaseTimer,Send(self,@GetMoveTime));
       }
 
       return;
@@ -2237,8 +2237,13 @@ messages:
    MoveTowards(oTarget = $, face_target=FALSE, face_away=FALSE,
                to_master=FALSE)
    {
-      local drow, dcol, lAstarTarget;
+<<<<<<< HEAD
+      local lAstarTarget;
+	  
+=======
+      local drow, dcol;
 
+>>>>>>> 6315340d5ebc711fd680258601e0ecd3766a124b
       if oTarget = $ 
       { 
          Debug("Bad info passed to MoveTowards!");
@@ -2249,12 +2254,7 @@ messages:
       { 
          return FALSE; 
       }
-
-      % calculate square delta in highres-grid
-      drow = ((Send(oTarget,@GetRow) * FINENESS) + Send(oTarget,@GetFineRow)) / 16;
-      dcol = ((Send(oTarget,@GetCol) * FINENESS) + Send(oTarget,@GetFineCol)) / 16;
-      drow = drow - (((piRow * FINENESS) + piFine_row) / 16);
-      dcol = dcol - (((piCol * FINENESS) + piFine_col) / 16);
+<<<<<<< HEAD
 	  
 	  if Send(Send(sys,@GetAstar),@Enabled)
 	  {
@@ -2270,14 +2270,28 @@ messages:
 		
 		if lAstarTarget <> $
 		{
-			return Send(self,@MoveInDirection,#row_diff=-drow,#col_diff=-dcol,
-                  #face_target=face_target,#face_away=face_away);
+			return Send(self,@MoveInDirection,#row_diff=Nth(lAstarTarget,1)-piRow,
+                  #col_diff=Nth(lAstarTarget,2)-piCol,
+                  #face_target=face_target,#face_away=face_away,
+                  #to_master=to_master);
 		}
 				  
 	  }
 	  % use old movement when astar disabled or when astar cannot provide a path or when moving around while standing next to an enemy
-	  return Send(self,@MoveInDirection,#row_diff=-drow,#col_diff=-dcol,
-                  #face_target=face_target,#face_away=face_away);
+	  return Send(self,@MoveInDirection,#row_diff=Send(oTarget,@GetRow)-piRow,
+                  #col_diff=Send(oTarget,@GetCol)-piCol,
+=======
+
+      % calculate square delta in highres-grid
+      drow = ((Send(oTarget,@GetRow) * FINENESS) + Send(oTarget,@GetFineRow)) / 16;
+      dcol = ((Send(oTarget,@GetCol) * FINENESS) + Send(oTarget,@GetFineCol)) / 16;
+      drow = drow - (((piRow * FINENESS) + piFine_row) / 16);
+      dcol = dcol - (((piCol * FINENESS) + piFine_col) / 16);
+
+      return Send(self,@MoveInDirection,#row_diff=drow,#col_diff=dcol,
+>>>>>>> 6315340d5ebc711fd680258601e0ecd3766a124b
+                  #face_target=face_target,#face_away=face_away,
+                  #to_master=to_master);
    }
 
    MoveAway(oTarget = $, face_target=FALSE, face_away=FALSE)
