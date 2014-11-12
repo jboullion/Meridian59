@@ -2822,42 +2822,77 @@ int C_CreatePath(int object_id,local_var_type *local_vars,
 				int num_normal_parms,parm_node normal_parm_array[],
 				int num_name_parms,parm_node name_parm_array[])
 {
-	val_type startrow,startcol,endrow,endcol,roomid;
+	val_type startrow,startcol,endrow,endcol,startrow_fine,startcol_fine,endrow_fine,endcol_fine,roomid;
 	
-	startrow = RetrieveValue(object_id,local_vars,normal_parm_array[0].type,
+	
+	roomid = RetrieveValue(object_id,local_vars,normal_parm_array[0].type,
 		normal_parm_array[0].value);
-	if (startrow.v.tag != TAG_INT)
-	{
-		bprintf("C_CreatePath passed non-int for startrow %i,%i\n",startrow.v.tag,startrow.v.data);
-		return NIL;
-	}
-	startcol = RetrieveValue(object_id,local_vars,normal_parm_array[1].type,
-		normal_parm_array[1].value);
-	if (startcol.v.tag != TAG_INT)
-	{
-		bprintf("C_CreatePath passed non-int for startcol %i,%i\n",startcol.v.tag,startcol.v.data);
-		return NIL;
-	}
-	endrow = RetrieveValue(object_id,local_vars,normal_parm_array[2].type,
-		normal_parm_array[2].value);
-	if (endrow.v.tag != TAG_INT)
-	{
-		bprintf("C_CreatePath passed non-int for endrow %i,%i\n",endrow.v.tag,endrow.v.data);
-		return NIL;
-	}
-	endcol = RetrieveValue(object_id,local_vars,normal_parm_array[3].type,
-		normal_parm_array[3].value);
-	if (endcol.v.tag != TAG_INT)
-	{
-		bprintf("C_CreatePath passed non-int for endcol %i,%i\n",endcol.v.tag,endcol.v.data);
-		return NIL;
-	}
-	roomid = RetrieveValue(object_id,local_vars,normal_parm_array[4].type,
-		normal_parm_array[4].value);
 	if (roomid.v.tag != TAG_ROOM_DATA)
 	{
 		bprintf("C_CreatePath passed non-room_data for roomid %i,%i\n",roomid.v.tag,roomid.v.data);
 		return NIL;
 	}
-	return CreatePath(startrow.v.data,startcol.v.data,endrow.v.data,endcol.v.data,roomid.v.data);
+
+	startrow = RetrieveValue(object_id,local_vars,normal_parm_array[1].type,
+		normal_parm_array[1].value);
+	if (startrow.v.tag != TAG_INT)
+	{
+		bprintf("C_CreatePath passed non-int for startrow %i,%i\n",startrow.v.tag,startrow.v.data);
+		return NIL;
+	}
+	startcol = RetrieveValue(object_id,local_vars,normal_parm_array[2].type,
+		normal_parm_array[2].value);
+	if (startcol.v.tag != TAG_INT)
+	{
+		bprintf("C_CreatePath passed non-int for startcol %i,%i\n",startcol.v.tag,startcol.v.data);
+		return NIL;
+	}
+	endrow = RetrieveValue(object_id,local_vars,normal_parm_array[3].type,
+		normal_parm_array[3].value);
+	if (endrow.v.tag != TAG_INT)
+	{
+		bprintf("C_CreatePath passed non-int for endrow %i,%i\n",endrow.v.tag,endrow.v.data);
+		return NIL;
+	}
+	endcol = RetrieveValue(object_id,local_vars,normal_parm_array[4].type,
+		normal_parm_array[4].value);
+	if (endcol.v.tag != TAG_INT)
+	{
+		bprintf("C_CreatePath passed non-int for endcol %i,%i\n",endcol.v.tag,endcol.v.data);
+		return NIL;
+	}
+	
+
+	startrow_fine = RetrieveValue(object_id,local_vars,normal_parm_array[5].type,
+		normal_parm_array[5].value);
+	if (startrow_fine.v.tag != TAG_INT)
+	{
+		bprintf("C_CreatePath passed non-int for startrow_fine %i,%i\n",startrow_fine.v.tag,startrow_fine.v.data);
+		return NIL;
+	}
+	startcol_fine = RetrieveValue(object_id,local_vars,normal_parm_array[6].type,
+		normal_parm_array[6].value);
+	if (startcol_fine.v.tag != TAG_INT)
+	{
+		bprintf("C_CreatePath passed non-int for startcol_fine %i,%i\n",startcol_fine.v.tag,startcol_fine.v.data);
+		return NIL;
+	}
+	endrow_fine = RetrieveValue(object_id,local_vars,normal_parm_array[7].type,
+		normal_parm_array[7].value);
+	if (endrow_fine.v.tag != TAG_INT)
+	{
+		bprintf("C_CreatePath passed non-int for endrow_fine %i,%i\n",endrow_fine.v.tag,endrow_fine.v.data);
+		return NIL;
+	}
+	endcol_fine = RetrieveValue(object_id,local_vars,normal_parm_array[8].type,
+		normal_parm_array[8].value);
+	if (endcol_fine.v.tag != TAG_INT)
+	{
+		bprintf("C_CreatePath passed non-int for endcol_fine %i,%i\n",endcol_fine.v.tag,endcol_fine.v.data);
+		return NIL;
+	}
+
+
+	return CreatePath(roomid.v.data, startrow.v.data-1,startcol.v.data-1,endrow.v.data-1,endcol.v.data-1,
+		startrow_fine.v.data,startcol_fine.v.data,endrow_fine.v.data,endcol_fine.v.data);
 }

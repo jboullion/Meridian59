@@ -17,9 +17,13 @@ poRoom = $
 
 piStartRow = 0
 piStartCol = 0
+piStartRow_fine = 0
+piStartCol_fine = 0
 
 piEndRow = 0
 piEndCol = 0
+piEndRow_fine = 0
+piEndCol_fine = 0
 
 poFrom = $
 poTo = $
@@ -37,14 +41,19 @@ Constructor(oFrom = $, oTo = $)
 	poRoom = Send(oFrom,@GetOwner);
 	piStartRow = Send(oFrom,@GetRow);
 	piStartCol = Send(oFrom,@GetCol);
+	piStartRow_fine = Send(oFrom,@GetFineRow);
+	piStartCol_fine = Send(oFrom,@GetFineCol);	
 	piEndRow = Send(oTo,@GetRow);
 	piEndCol = Send(oTo,@GetCol);
+	piEndRow_fine = Send(oTo,@GetFineRow);
+	piEndCol_fine = Send(oTo,@GetFineCol);
 	
 	if vbDebugItems AND plDebugItems <> $
 	{
 		Send(self,@RemoveDebugItems);
 	}
-	plPath = CreateAstarPath(piStartRow,piStartCol,piEndRow,piEndCol,Send(poRoom,@GetRoomData));
+	plPath = CreateAstarPath(Send(poRoom,@GetRoomData),piStartRow,piStartCol,piEndRow,piEndCol,
+                             piStartRow_fine,piStartCol_fine,piEndRow_fine,piEndCol_fine);
 	if vbDebugItems
 	{
 		Send(self,@CreateDebugItems);
@@ -58,19 +67,26 @@ Recreate()
 	return;
 }
 
-TargetMoved(row = $, col = $)
+TargetMoved(row = $, col = $, fine_row = $, fine_col = $)
 "sent when we need to recalculate our path due to moving targets"
 {
 	plPath = [];
 	piStartRow = Send(poFrom,@GetRow);
 	piStartCol = Send(poFrom,@GetCol);
+	piStartRow_fine = Send(poFrom,@GetFineRow);
+	piStartCol_fine = Send(poFrom,@GetFineCol);
+	
 	piEndRow = row;
 	piEndCol = col;
+	piEndRow_fine = fine_row;
+	piEndCol_fine = fine_col;
+	
 	if vbDebugItems AND plDebugItems <> $
 	{
 		Send(self,@RemoveDebugItems);
 	}
-	plPath = CreateAstarPath(piStartRow,piStartCol,piEndRow,piEndCol,Send(poRoom,@GetRoomData));
+	plPath = CreateAstarPath(Send(poRoom,@GetRoomData),piStartRow,piStartCol,piEndRow,piEndCol,
+                             piStartRow_fine,piStartCol_fine,piEndRow_fine,piEndCol_fine);
 	if vbDebugItems
 	{
 		Send(self,@CreateDebugItems);
@@ -102,13 +118,22 @@ CalculateStep(oTarget = $)
 CreateDebugItems()
 "creates a line of apples showing the final path"
 {
-	local oDebugItem, i;
+	local oDebugItem, i, r, c, rfine, cfine;
+
 	Debug("plPath:",plPath);
 	for i in plPath
 	{	
 		oDebugItem = Create(&Apple);
 		plDebugItems = Cons(oDebugItem,plDebugItems);
-		Send(SYS,@PutInRoom,#what=oDebugItem,#rid=Send(poRoom,@GetRoomNum),#row=Nth(i,1),#col=Nth(i,2));
+
+		% convert highres-scale to big/fine
+        r = (Nth(i,1) * 16) / FINENESS;
+		c = (Nth(i,2) * 16) / FINENESS;
+        rfine = (Nth(i,1) * 16) MOD FINENESS;
+		cfine = (Nth(i,2) * 16) MOD FINENESS;
+		
+		Send(SYS,@PutInRoom,#what=oDebugItem,#rid=Send(poRoom,@GetRoomNum),
+			#row=r,#col=c,#fine_row=rfine,#fine_col=cfine);
 	}
 	return;
 }

@@ -905,7 +905,7 @@ messages:
       }
       else
       {
-         ptBehavior = CreateTimer(self,@ChaseTimer,Send(self,@GetChaseTime));
+         ptBehavior = CreateTimer(self,@ChaseTimer,Send(self,@GetMoveTime));
       }
 
       return;
@@ -981,7 +981,8 @@ messages:
       propagate;
    }
    
-   SomethingMoved(what = $,new_row = $,new_col = $)
+   SomethingMoved(what = $,new_row = $,new_col = $,
+                  fine_row = FINENESS_HALF, fine_col = FINENESS_HALF)
    "Check to see if we need to change our combat plan because someone moved."
    {
       % If either we or our target moved, then we no longer know 
@@ -994,7 +995,7 @@ messages:
 	  {
 		if what = Send(poAstarPath,@GetTarget)
 		{
-			Send(poAstarPath,@TargetMoved,#row=new_row,#col=new_col);
+			Send(poAstarPath,@TargetMoved,#row=new_row,#col=new_col,#fine_row=fine_row,#fine_col=fine_col);
 		}
 	  }
 
@@ -2242,7 +2243,7 @@ messages:
    MoveTowards(oTarget = $, face_target=FALSE, face_away=FALSE,
                to_master=FALSE)
    {
-      local drow, dcol, lAstarTarget;
+      local drow, dcol, lAstarTarget, r, c;
 
       if oTarget = $ 
       { 
@@ -2255,15 +2256,8 @@ messages:
          return FALSE; 
       }
 
-      % calculate square delta in highres-grid
-      drow = ((Send(oTarget,@GetRow) * FINENESS) + Send(oTarget,@GetFineRow)) / 16;
-      dcol = ((Send(oTarget,@GetCol) * FINENESS) + Send(oTarget,@GetFineCol)) / 16;
-      drow = drow - (((piRow * FINENESS) + piFine_row) / 16);
-      dcol = dcol - (((piCol * FINENESS) + piFine_col) / 16);
-	  
 	  if Send(Send(sys,@GetAstar),@Enabled)
-	  {
-		
+	  {		
 		if poAstarPath = $
 		{
 			poAstarPath = Send(Send(sys,@GetAstar),@CreatePath,#oFrom=self,#oTo=oTarget);
@@ -2271,17 +2265,32 @@ messages:
 		
 		%Get our next step as the MoveInDirection target
 		lAstarTarget = Send(poAstarPath,@CalculateStep,#oTarget=oTarget);
-		
-		
+				
 		if lAstarTarget <> $
 		{
-			return Send(self,@MoveInDirection,#row_diff=-drow,#col_diff=-dcol,
+            % row and col returned from astar are in highres-grid scale
+			r = Nth(lAstarTarget,1);
+			c = Nth(lAStarTarget,2);
+			
+			% calculate square delta in highres-grid to suggested destination
+            drow = r - (((piRow * FINENESS) + piFine_row) / 16);
+            dcol = c - (((piCol * FINENESS) + piFine_col) / 16);
+			
+			return Send(self,@MoveInDirection,#row_diff=drow,#col_diff=dcol,
                   #face_target=face_target,#face_away=face_away);
 		}
-				  
 	  }
-	  % use old movement when astar disabled or when astar cannot provide a path or when moving around while standing next to an enemy
-	  return Send(self,@MoveInDirection,#row_diff=-drow,#col_diff=-dcol,
+
+      % use old movement when astar disabled or when astar cannot provide
+      % a path or when moving around while standing next to an enemy
+
+      % calculate square delta in highres-grid
+      drow = ((Send(oTarget,@GetRow) * FINENESS) + Send(oTarget,@GetFineRow)) / 16;
+      dcol = ((Send(oTarget,@GetCol) * FINENESS) + Send(oTarget,@GetFineCol)) / 16;
+      drow = drow - (((piRow * FINENESS) + piFine_row) / 16);
+      dcol = dcol - (((piCol * FINENESS) + piFine_col) / 16);
+	  	  
+      return Send(self,@MoveInDirection,#row_diff=drow,#col_diff=dcol,
                   #face_target=face_target,#face_away=face_away);
    }
 

@@ -39,19 +39,40 @@ bool astardebug = false;
 //pathfinding
 void ScanNode(astar_node *startnode, astar_path *path);
 
-//Takes two objects, from and to (origin and target)
-int CreatePath(int startrow, int startcol, int endrow, int endcol, int roomid)
+// Creates a path
+int CreatePath(int roomid, int startrow, int startcol, int endrow, int endcol,
+               int startrow_fine, int startcol_fine, int endrow_fine, int endcol_fine)
 {
 	int rows, cols, idxstart, idxend;
+	int from_row_comb, from_col_comb, to_row_comb, to_col_comb;
 	astar_path path;
 	astar_node *startnode, *endnode;
 
+    // build a combined value in fine precision first
+	// a row has 64 fine rows, a col has 64 fine cols
+	// so a square has 4096 fine squares. 
+	// << 6 (LSHIFT 6) is a faster variant of (*64)
+	from_row_comb = (startrow << 6) + startrow_fine;
+	from_col_comb = (startcol << 6) + startcol_fine;
+	to_row_comb = (endrow << 6) + endrow_fine;
+	to_col_comb = (endcol << 6) + endcol_fine;
+
+	// scale to the highprecision scale
+	// a row has 4 highprecision rows, a col has 4 highprecision cols.
+	// so highres grid precision is NOT as good as fine precision!
+	// a highres row still has 16 finerows.
+	// >> 4 (RSHIFT 4) is faster variant of (/16)
+	from_row_comb = from_row_comb >> 4;
+	from_col_comb = from_col_comb >> 4;
+	to_row_comb = to_row_comb >> 4;
+	to_col_comb = to_col_comb >> 4;
+
 	//gets the roomdata we need to use CanMoveInRoomHighRes()
 	path.room = GetRoomDataByID(roomid);
-	path.startrow = startrow;
-	path.startcol = startcol;
-	path.endrow = endrow;
-	path.endcol = endcol;
+	path.startrow = from_row_comb;
+	path.startcol = from_col_comb;
+	path.endrow = to_row_comb;
+	path.endcol = to_col_comb;
 	path.path_list_id = 0;
 	path.open = NULL;
 	path.closed = NULL;
@@ -60,9 +81,9 @@ int CreatePath(int startrow, int startcol, int endrow, int endcol, int roomid)
 	rows = path.room->file_info.rowshighres;
 	cols = path.room->file_info.colshighres;
 	
-	// rows and cols are 1-based here
-	idxstart = (startrow - 1) * cols + (startcol - 1);
-	idxend = (endrow - 1) * cols + (endcol - 1);
+	// rows and cols are 0-based (done in ccode.c caller)
+	idxstart = from_row_comb * cols + from_col_comb;
+	idxend = to_row_comb * cols + to_col_comb;
 
 	startnode = &path.grid[idxstart];
 	endnode = &path.grid[idxend];
@@ -161,8 +182,8 @@ void CreateGrid(astar_path *path)
 		{
 			idx = row * cols + col;
 
-			path->grid[idx].row = row + 1;
-			path->grid[idx].col = col + 1;
+			path->grid[idx].row = row;
+			path->grid[idx].col = col;
 			path->grid[idx].parent = NULL;
 			path->grid[idx].score = 0;
 			path->grid[idx].movement_cost = 0;
@@ -211,11 +232,13 @@ void ScanNode(astar_node *startnode, astar_path *path)
 	astar_node *currentnode;
 	int rows = path->room->file_info.rowshighres;
 	int cols = path->room->file_info.colshighres;
-	
-	if (startnode->row > rows ||
-		startnode->col > cols ||
-		startnode->row < 1 ||
-		startnode->col < 1)
+	int bigrow_start,bigcol_start,finerow_start,finecol_start;
+	int bigrow_end,bigcol_end,finerow_end,finecol_end;
+
+	if (startnode->row >= rows ||
+		startnode->col >= cols ||
+		startnode->row < 0 ||
+		startnode->col < 0)
 	{
 		dprintf("startnode Row or Col outside bounds in ScanNode()");
 		return;
@@ -229,16 +252,15 @@ void ScanNode(astar_node *startnode, astar_path *path)
 			col = startnode->col + coloffset;
 
 			//if the current node is outside the map boundary, skip it
-			if (row > rows ||
-				col > cols ||
-				row < 1 ||
-				col < 1)
+			if (row >= rows ||
+				col >= cols ||
+				row < 0 ||
+				col < 0)
 			{
 				continue;
 			}
 			
-			// row and col are 1-based here
-			idx = (row-1) * cols + (col-1);
+			idx = row * cols + col;
 			
 			//grab our found node from the grid
 			currentnode = &path->grid[idx];
@@ -252,9 +274,20 @@ void ScanNode(astar_node *startnode, astar_path *path)
 			//if the node is on the closed list, skip it
 			if (IsNodeOnList(path->closed,currentnode))
 				continue;
+			
+			// build big/fine coordinates for highres-gridsquare
+			bigrow_start = (startnode->row * 16) / 64;
+			bigcol_start = (startnode->col * 16) / 64;
+			finerow_start = (startnode->row * 16) % 64;
+			finecol_start = (startnode->row * 16) % 64;			
+			bigrow_end = (currentnode->row * 16) / 64;
+			bigcol_end = (currentnode->col * 16) / 64;
+			finerow_end = (currentnode->row * 16) % 64;
+			finecol_end = (currentnode->row * 16) % 64;
+
 			//if we can move from startnode->row/col to currentnode->row/col
 			//CanMoveInRoomHighRes  (roomdata_node *r,int from_row  , int from_col  , int from_finerow, int from_finecol, int to_row,int to_col,int to_finerow, int to_finecol)
-			if (CanMoveInRoomHighRes(path->room      ,startnode->row, startnode->col, currentnode->row, currentnode->col))
+			if (CanMoveInRoomHighRes(path->room,bigrow_start,bigcol_start,finerow_start,finecol_start,bigrow_end,bigcol_end,finerow_end,finecol_end))
 			{
 				//if the node is not on the open list
 				if (!IsNodeOnList(path->open,currentnode))

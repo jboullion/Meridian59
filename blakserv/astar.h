@@ -48,6 +48,7 @@ typedef struct astarpath_struct
 
 } astar_path;
 
-int CreatePath(int startrow, int startcol, int endrow, int endcol, int roomid);
+int CreatePath(int roomid, int startrow, int startcol, int endrow, int endcol,
+               int startrow_fine, int startcol_fine, int endrow_fine, int endcol_fine);
 
 #endif /*#ifndef _ASTAR_H */
