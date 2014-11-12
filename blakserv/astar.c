@@ -46,7 +46,7 @@ int CreatePath(int startrow, int startcol, int endrow, int endcol, int roomid)
 	astar_path path;
 	astar_node *startnode, *endnode;
 
-	//gets the roomdata we need to use CanMoveInRoom()
+	//gets the roomdata we need to use CanMoveInRoomHighRes()
 	path.room = GetRoomDataByID(roomid);
 	path.startrow = startrow;
 	path.startcol = startcol;
@@ -57,8 +57,8 @@ int CreatePath(int startrow, int startcol, int endrow, int endcol, int roomid)
 	path.closed = NULL;
 	CreateGrid(&path); //creates our 2d grid of rows
 
-	rows = path.room->file_info.rows;
-	cols = path.room->file_info.cols;
+	rows = path.room->file_info.rowshighres;
+	cols = path.room->file_info.colshighres;
 	
 	// rows and cols are 1-based here
 	idxstart = (startrow - 1) * cols + (startcol - 1);
@@ -146,8 +146,8 @@ int CreatePath(int startrow, int startcol, int endrow, int endcol, int roomid)
 
 void CreateGrid(astar_path *path)
 {
-	int rows = path->room->file_info.rows;
-	int cols = path->room->file_info.cols;
+	int rows = path->room->file_info.rowshighres;
+	int cols = path->room->file_info.colshighres;
 	int size = rows * cols * sizeof(astar_node);
 	int idx = 0;
 	
@@ -173,8 +173,8 @@ void CreateGrid(astar_path *path)
 
 void DisplayGrid(astar_path *path)
 {
-	int rows = path->room->file_info.rows;
-	int cols = path->room->file_info.cols;
+	int rows = path->room->file_info.rowshighres;
+	int cols = path->room->file_info.colshighres;
 	int idx = 0;
 
 	char *rowstring = (char *)AllocateMemory(MALLOC_ID_ASTAR,10000);
@@ -198,8 +198,8 @@ void DisplayGrid(astar_path *path)
 
 void FreeGrid(astar_path *path)
 {
-	int rows = path->room->file_info.rows;
-	int cols = path->room->file_info.cols;
+	int rows = path->room->file_info.rowshighres;
+	int cols = path->room->file_info.colshighres;
 	int size = rows * cols * sizeof(astar_node);
 
 	FreeMemory(MALLOC_ID_ASTAR, path->grid, size);			
@@ -209,15 +209,15 @@ void ScanNode(astar_node *startnode, astar_path *path)
 {
 	int idx, row, col;
 	astar_node *currentnode;
-	int rows = path->room->file_info.rows;
-	int cols = path->room->file_info.cols;
+	int rows = path->room->file_info.rowshighres;
+	int cols = path->room->file_info.colshighres;
 	
 	if (startnode->row > rows ||
 		startnode->col > cols ||
 		startnode->row < 1 ||
 		startnode->col < 1)
 	{
-		dprintf("startnode Row or Col outside bounds in ScanNoe()");
+		dprintf("startnode Row or Col outside bounds in ScanNode()");
 		return;
 	}
 
@@ -253,7 +253,8 @@ void ScanNode(astar_node *startnode, astar_path *path)
 			if (IsNodeOnList(path->closed,currentnode))
 				continue;
 			//if we can move from startnode->row/col to currentnode->row/col
-			if (CanMoveInRoom(path->room,startnode->row,startnode->col,currentnode->row,currentnode->col))
+			//CanMoveInRoomHighRes  (roomdata_node *r,int from_row  , int from_col  , int from_finerow, int from_finecol, int to_row,int to_col,int to_finerow, int to_finecol)
+			if (CanMoveInRoomHighRes(path->room      ,startnode->row, startnode->col, currentnode->row, currentnode->col))
 			{
 				//if the node is not on the open list
 				if (!IsNodeOnList(path->open,currentnode))
