@@ -25,6 +25,11 @@ piEndCol = 0
 piEndRow_fine = 0
 piEndCol_fine = 0
 
+% here we track how much the
+% destination changes (in fine units)
+piDestRowOffset = 0
+piDestColOffset = 0
+
 poFrom = $
 poTo = $
 
@@ -67,20 +72,47 @@ Recreate()
 	return;
 }
 
-TargetMoved(row = $, col = $, fine_row = $, fine_col = $)
+TargetMoved(row = $, col = $, fine_row = FINENESS_HALF, fine_col = FINENESS_HALF)
 "sent when we need to recalculate our path due to moving targets"
 {
+    local dr, dc;
+
+	% get delta of old destination and new in fine units
+    dr = ((row * FINENESS) + fine_row) - ((piEndRow * FINENESS) + piEndRow_fine);
+	dc = ((col * FINENESS) + fine_col) - ((piEndCol * FINENESS) + piEndCol_fine);
+
+	% add it to tracked offsets so far
+	piDestRowOffset = piDestRowOffset + dr;
+	piDestColOffset = piDestColOffset + dc;
+	
+	% only recalibrate astar if the destination offsets
+	% exceed a threshold (e.g. target moved too far away from old destination)
+	% with the current values, the target must have moved at least 2 highres-squares
+	% away from the old destination
+	if abs(piDestRowOffset) < FINENESS_HALF AND abs(piDestColOffset < FINENESS_HALF)
+	{
+		return;
+	}
+	
+	% actually rebuild path
+	% unset offsets first
+	piDestRowOffset = 0;
+	piDestColOffset = 0;
+	
 	plPath = [];
+
+	% update start coordinates
 	piStartRow = Send(poFrom,@GetRow);
 	piStartCol = Send(poFrom,@GetCol);
 	piStartRow_fine = Send(poFrom,@GetFineRow);
 	piStartCol_fine = Send(poFrom,@GetFineCol);
-	
+
+	% update end coordinates
 	piEndRow = row;
 	piEndCol = col;
 	piEndRow_fine = fine_row;
 	piEndCol_fine = fine_col;
-	
+
 	if vbDebugItems AND plDebugItems <> $
 	{
 		Send(self,@RemoveDebugItems);
