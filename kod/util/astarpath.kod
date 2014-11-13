@@ -137,6 +137,10 @@ CalculateStep(oTarget = $)
 	if plPath <> $
 	{
 		i = First(plPath);
+		if i <> $
+		{
+			return $;
+		}
 		%remove that node from the list
 		plPath = DelListElem(plPath,i);
 		return i;
