@@ -139,10 +139,13 @@ CalculateStep(oTarget = $)
 	if plPath <> $
 	{
 		i = First(plPath);
-		if i <> $
+		if i = $ %The last item on plPath is an empty list.
 		{
+			Debug(plPath);
+			plPath = $;
 			return $;
 		}
+		
 		%remove that node from the list
 		plPath = DelListElem(plPath,i);
 		return i;
