@@ -139,7 +139,7 @@ CalculateStep(oTarget = $)
 	if plPath <> $
 	{
 		i = First(plPath);
-		if i = $ %The last item on plPath is an empty list.
+		if i = $ %The last item on plPath is an empty list. Get rid of it.
 		{
 			Debug(plPath);
 			plPath = $;
