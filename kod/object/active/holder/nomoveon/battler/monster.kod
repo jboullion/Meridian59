@@ -2269,12 +2269,13 @@ messages:
 		if lAstarTarget <> $
 		{
             % row and col returned from astar are in highres-grid scale
+			% and are zero-based
 			r = Nth(lAstarTarget,1);
 			c = Nth(lAStarTarget,2);
 			
 			% calculate square delta in highres-grid to suggested destination
-            drow = r - (((piRow * FINENESS) + piFine_row) / 16);
-            dcol = c - (((piCol * FINENESS) + piFine_col) / 16);
+            drow = r - ((((piRow-1) * FINENESS) + piFine_row) / 16);
+            dcol = c - ((((piCol-1) * FINENESS) + piFine_col) / 16);
 			
 			return Send(self,@MoveInDirection,#row_diff=drow,#col_diff=dcol,
                   #face_target=face_target,#face_away=face_away);
