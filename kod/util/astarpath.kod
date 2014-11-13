@@ -87,9 +87,11 @@ TargetMoved(row = $, col = $, fine_row = FINENESS_HALF, fine_col = FINENESS_HALF
 	
 	% only recalibrate astar if the destination offsets
 	% exceed a threshold (e.g. target moved too far away from old destination)
-	% with the current values, the target must have moved at least 2 highres-squares
-	% away from the old destination
-	if abs(piDestRowOffset) < FINENESS_HALF AND abs(piDestColOffset < FINENESS_HALF)
+	% this is important because a running player otherwise triggers recreation at 70ms intervals.
+	% With the current values, the target must have moved at least 2 big square
+	% away from the old destination before we recalculate the path.
+	% This can be decreased further to reduce CPU load
+	if abs(piDestRowOffset) < (2*FINENESS) AND abs(piDestColOffset < (2*FINENESS))
 	{
 		return;
 	}
