@@ -43,22 +43,22 @@ constants:
 
 resources:
 
-   system_user_killed = "### %q was just killed by %s%q."
-   system_user_killed_by_pker = "### %q has been murdered in cold blood."
+   system_user_killed = "~B~U~k[###]~n ~B~v%q was just killed by %s%q."
+   system_user_killed_by_pker = "~B~U~k[###]~n ~B~v%q has been murdered in cold blood."
    system_user_killed_pker = \
-      "### The notorious murderer, %q, has been killed by %s%q."
+      "~B~U~k[###]~n ~B~vThe notorious murderer, %q, has been killed by %s%q."
    system_user_killed_outlaw = \
-      "### The feared outlaw, %q, has just met justice at %s%q's hands."
-   system_killed_self = "### %q was just slain by %s own folly."
+      "~B~U~k[###]~n ~B~vThe feared outlaw, %q, has just met justice at %s%q's hands."
+   system_killed_self = "~B~U~k[###]~n ~B~v%q was just slain by %s own folly."
    system_user_killed_room = \
-      "### %s have laid claim to yet another poor soul, %q."
+      "~B~U~k[###]~n ~B~v%s have laid claim to yet another poor soul, %q."
    system_user_killed_bridge_faith = \
-      "### %q just hurled %sself from the cliffs of Riija to find a watery "
+      "~B~U~k[###]~n ~B~v%q just hurled %sself from the cliffs of Riija to find a watery "
       "grave."
-   system_user_killed_token = "### %q lost a token to %s%q."
-   system_user_killed_shield = "### %q was bested by faction rival %s%q."
+   system_user_killed_token = "~B~U~k[###]~n ~B~v%q lost a token to %s%q."
+   system_user_killed_shield = "~B~U~k[###]~n ~B~v%q was bested by faction rival %s%q."
    system_user_killed_guild = \
-      "### %q of %s%q has been slaughtered by %s%q of %s%q in guild combat."
+      "~B~U~k[###]~n ~B~v%q of %s%q has been slaughtered by %s%q of %s%q in guild combat."
       
    guildwar_kill_title1 = " has slaughtered "
    guildwar_kill_body1 = "Let it be known that "
@@ -211,7 +211,7 @@ resources:
    system_new_hour = "It is now %i:00 Meridian time."
 
    system_gift = \
-       "### Out of the kindness of their hearts, the gods have elected to "
+       "~B~U~k[###]~n ~B~vOut of the kindness of their hearts, the gods have elected to "
        "give you %s%s!"
 
    system_mail_template_rsc = "Subject: %q\n%q\n"
@@ -238,6 +238,42 @@ resources:
       "~IA strange wind blows across the land, killing all monsters.~I\n"
       "~b~BCongratulations!~B~k All the monsters have been slain!  You have "
       "won Meridian 59.  Hope you had fun, it's been a great game."
+
+   weapon_resistance_name = "weapon resistance"
+   pierce_resistance_name = "pierce resistance"
+   slash_resistance_name = "slash resistance"
+   bludgeon_resistance_name = "bludgeon resistance"
+   thrust_resistance_name = "thrust resistance"
+   magic_resistance_name = "magic resistance"
+   fire_resistance_name = "fire resistance"
+   cold_resistance_name = "cold resistance"
+   shock_resistance_name = "shock resistance"
+   acid_resistance_name = "acid resistance"
+   holy_resistance_name = "holy resistance"
+   unholy_resistance_name = "unholy resistance"
+   quake_resistance_name = "quake resistance"
+   unknown_resistance_name = "unknown resistance"
+
+   weapon_damage_name = "weapon"
+   pierce_damage_name = "pierce"
+   slash_damage_name = "slash"
+   bludgeon_damage_name = "bludgeon"
+   thrust_damage_name = "thrust"
+   magic_damage_name = "magic"
+   fire_damage_name = "fire"
+   cold_damage_name = "cold"
+   shock_damage_name = "shock"
+   acid_damage_name = "acid"
+   holy_damage_name = "holy"
+   unholy_damage_name = "unholy"
+   quake_damage_name = "quake"
+   nonmagic_damage_name = "mundane"
+   enchanted_damage_name = "enchanted"
+   nerudite_damage_name = "nerudite"
+   silver_damage_name = "silver"
+   unknown_damage_name = "unknown"
+   
+   system_message_sound = system.wav
    
 classvars:
 
@@ -304,6 +340,8 @@ properties:
    poSettings = $
 
    poWarEvent = $
+   
+   poQormas = $
 
    % Hash table for users.
    phUsers
@@ -406,6 +444,12 @@ properties:
    
    % A master list of all spell-casting active objects
    plSpellTotems = $
+
+   % A master list of all object attributes, for maintenance, control, & statistics purposes
+   plObject_attributes_master = $
+
+   % A list of room type objects used forr room icons
+   plRoomIcons = $
 
 messages:
 
@@ -651,13 +695,12 @@ messages:
       piRecreate_State = RECREATE_PHASE_FIVE;
 
       Send(self,@RecreateLearnAdvice);
-      Send(self,@RecomputeShrineTotals);
       Send(self,@RecreateMonsterTemplates);
       Send(self,@RecreateItemTemplates);
       Send(self,@RecreateMoneyTemplates);
       Send(self,@RecreateChests);
       Send(self,@RecreateLore);
-      Send(self, @UpdateHallOfHeroes);
+      Send(self,@UpdateHallOfHeroes);
 
       poTotem = Create(&Totem);
       poTotemOne = Create(&TotemOne);
@@ -689,7 +732,7 @@ messages:
       }
 
       Send(self,@RecalcLightAndWeather);
-
+      Send(self,@ReturnShrineAllegiance);
       Send(self,@RecreateStatistics);  % Must create after anything you want to measure
 
       piRecreate_state = RECREATE_NOT;
@@ -950,6 +993,7 @@ messages:
       {
          Send(i,@SysMsgSendUser,#message_rsc=system_admin_message,
               #parm1=string);
+         Send(i,@WaveSendUser,#wave_rsc=system_message_sound,#what=self);
       }
 
       return;
@@ -984,9 +1028,42 @@ messages:
 
       return FALSE;
    }
+   
+   VerifyUsersLoggedOn()
+   {
+      local oCheck, oDoubleCheck, iThisPlayerCount;
+      
+      for oCheck in plUsers_logged_on
+      {
+         iThisPlayerCount = 0;
+         for oDoubleCheck in plUsers_logged_on
+         {
+            if oCheck = oDoubleCheck
+            {
+               iThisPlayerCount = iThisPlayerCount + 1;
+            }
+            if iThisPlayerCount > 1
+            {
+               plUsers_logged_on = DelListElem(plUsers_logged_on, oDoubleCheck);
+            }
+         }
+      }
+      
+      return;
+   }
 
    SystemUserLogon(what = $)
    {
+      local oDoubleCheck;
+      
+      for oDoubleCheck in plUsers_logged_on
+      {
+         if oDoubleCheck = what
+         {
+            plUsers_logged_on = DelListElem(plUsers_logged_on, oDoubleCheck);
+         }
+      }
+   
       plUsers_logged_on = Cons(what,plUsers_logged_on);
 
       if poChaosNight <> $
@@ -1023,9 +1100,15 @@ messages:
 
    SystemUserLogoff(what = $)
    {
-      local i, j, oNew_room;
-
-      plUsers_logged_on = DelListElem(plUsers_logged_on,what);
+      local i, j, oNew_room, oDoubleCheck;
+      
+      for oDoubleCheck in plUsers_logged_on
+      {
+         if oDoubleCheck = what
+         {
+            plUsers_logged_on = DelListElem(plUsers_logged_on, oDoubleCheck);
+         }
+      }
 
       % Remember: plReflections format is:
       % [[player,[ref1,ref2]],[player2,[ref1,ref2]],...]
@@ -1045,6 +1128,29 @@ messages:
          }
       }
 
+      return;
+   }
+   
+   DeletePlayerReflections(who = $)
+   {
+      local i, j;
+
+      % Remember: plReflections format is:
+      % [[player,[ref1,ref2]],[player2,[ref1,ref2]],...]
+
+      for i in plReflections
+      {
+         if first(i) = who
+         {
+            for j in Nth(i,2)
+            {
+               Send(j,@Delete);
+            }
+
+            break;
+         }
+      }
+      
       return;
    }
 
@@ -1149,6 +1255,9 @@ messages:
 
       Send(self,@NewGameHour);
 
+      % Change the color of rainbow ferns.
+      Send(&RainbowFern,@ChangeColor,#iHour=piHour);
+
       return;
    }
 
@@ -1192,13 +1301,27 @@ messages:
 
       Send(Send(self,@FindSpellByNum,#num=SID_NODEBURST),@NewDay);
 
+      Send(self,@VerifyUsersLoggedOn);
+
       return;
    }
 
    NewYear()
    {
+      local i;
       Send(self,@NewYearClean);
       piYear = piYear + 1;
+
+      % Determine if anyone needs to lose their newbie tag.
+      for i in plUsers
+      {
+         % Exclude 'users' who haven't created a character yet.
+         if Send(i,@GetLastLoginTime) <> 0
+         {
+            % This checks age vs. game year and takes appropriate action.
+            Send(i,@GetAge);
+         }
+      }
 
       return;
    }
@@ -1658,7 +1781,7 @@ messages:
                %  mysterious murder message!
                if rMessage = $
                   AND Send(killer,@CheckPlayerFlag,#flag=PFLAG_MURDERER)
-                  AND NOT Send(Send(killer,@GetOwner),@SafePlayerAttack)
+                  AND NOT Send(Send(what,@GetOwner),@SafePlayerAttack)
                {
                   rMessage = system_user_killed_by_pker;
                   poLastMurderer = killer;
@@ -1683,6 +1806,7 @@ messages:
          Send(i,@MsgSendUser,#message_rsc=rMessage,#parm1=Send(what,@GetTrueName),#type1=STRING_RESOURCE,
               #parm2=param2,#parm3=param3,#parm4=param4,#parm5=param5,#parm6=param6,
               #parm7=param7,#type3=STRING_RESOURCE,#type5=type5,#type7=type7);
+         Send(i,@WaveSendUser,#wave_rsc=system_message_sound,#what=self);
       }
 
       return;
@@ -2418,6 +2542,8 @@ messages:
          Send(i,@Delete);
       }
 
+      Send(self,@RecreateRoomIcons);
+
       plRooms = $;
       phRooms = $;
       Send(self,@CreateRoomTable);
@@ -2536,6 +2662,75 @@ messages:
       Debug("Tried to delete room that is not in plRooms.");
 
       return;
+   }
+
+   CreateRoomIcons()
+   {
+      plRoomIcons = [$,$,$,$,$,$,$,$,$,$,$,$,$,$];
+
+      SetNth(plRoomIcons, ICON_ROOM_NO_COMBAT, Create(&RmNoCombat));
+      SetNth(plRoomIcons, ICON_ROOM_GUILD_PK_ONLY, Create(&RmGCombat));
+
+      % use kill zone icon for both kill zone flagged rooms and rooms without
+      % guild combat or no combat flags
+      SetNth(plRoomIcons, ICON_ROOM_KILL_ZONE, Create(&RmCombat));
+
+      return;
+   }
+
+   DeleteRoomIcons()
+   {
+      local i;
+
+      for i in plRoomIcons
+      {
+         if (i <> $)
+         {
+            send(i,@Delete);
+         }
+      }
+
+      return;
+   }
+
+   RecreateRoomIcons()
+   {
+      send(self,@DeleteRoomIcons);
+      send(self,@CreateRoomIcons);
+      return;
+   }
+
+   GetRoomIcons(flags=0)
+   {
+      local lRoomIcons;
+
+      lRoomIcons = $;
+
+      if (flags & ROOM_NO_COMBAT)
+      {
+         lRoomIcons = cons(Nth(plRoomIcons,ICON_ROOM_NO_COMBAT),lRoomIcons);
+      }
+
+      if (flags & ROOM_GUILD_PK_ONLY)
+      {
+         lRoomIcons = cons(Nth(plRoomIcons,ICON_ROOM_GUILD_PK_ONLY),lRoomIcons);
+      }
+
+      if NOT (flags & ROOM_NO_COMBAT)
+         AND NOT (flags & ROOM_GUILD_PK_ONLY)
+         AND NOT (flags & ROOM_KILL_ZONE)
+      {
+         lRoomIcons = cons(Nth(plRoomIcons,ICON_ROOM_KILL_ZONE),lRoomIcons);
+      }
+
+      if (flags & ROOM_KILL_ZONE)
+         AND NOT (flags & ROOM_NO_COMBAT)
+         AND NOT (flags & ROOM_GUILD_PK_ONLY)
+      {
+         lRoomIcons = cons(Nth(plRoomIcons,ICON_ROOM_KILL_ZONE),lRoomIcons);
+      }
+
+      return lRoomIcons;
    }
 
    DeleteBank(what = $)
@@ -2764,7 +2959,7 @@ messages:
 
    RecomputeShrineTotals()
    {
-      local i, n, allegiance, power, count, power_count;
+      local i, allegiance, power, count;
 
       if plShrine_Powers = $
       {
@@ -2782,20 +2977,6 @@ messages:
          }
       }
       
-      if plShrine_Allegiances <> $
-      {
-         power_count = 1;
-         for n in plShrines
-         {
-            if Nth(plShrine_Allegiances,power_count) <> 0
-            {
-               Send(n,@SetAllegiance,#allegiance=Nth(plShrine_Allegiances,power_count));
-               power_count = power_count + 1;
-            }
-         }
-         plShrine_Allegiances = $;
-      }
-
       for i in plShrines
       {
          allegiance = Send(i,@GetAllegiance);
@@ -2806,6 +2987,29 @@ messages:
             SetNth(plShrine_powers,allegiance,(Nth(plShrine_powers,allegiance)+power));
          }
       }
+
+      return;
+   }
+
+   ReturnShrineAllegiance()
+   {
+      % Returns proper shrine allegiance at RecreateAll phase 5
+
+      local i, n;
+      if plShrine_Allegiances <> $
+      {
+         n = 5;
+
+         for i in plShrines
+         {
+            Send(i,@SetAllegiance,#allegiance=(Nth(plShrine_Allegiances,n)));
+            n = n - 1;
+         }
+      }
+      plShrine_Allegiances = $;
+
+      % We have to recalculate the allegiance if we want the power to register
+      Send(self,@RecomputeShrineTotals);
 
       return;
    }
@@ -2870,11 +3074,9 @@ messages:
       Send(self,@CreateOneSpellIfNew,#num=SID_MEND,#class=&Mend);
       Send(self,@CreateOneSpellIfNew,#num=SID_EARTHQUAKE,#class=&Earthquake);
       Send(self,@CreateOneSpellIfNew,#num=SID_POISON,#class=&Poison);
-      Send(self,@CreateOneSpellIfNew,#num=SID_PALSY,#class=&Palsy);
-      Send(self,@CreateOneSpellIfNew,#num=SID_DEMENTIA,#class=&Dementia);
       Send(self,@CreateOneSpellIfNew,#num=SID_SUPER_STRENGTH,#class=&SuperStrength);
       Send(self,@CreateOneSpellIfNew,#num=SID_ARTIFICE,#class=&Artifice);
-   
+
       Send(self,@CreateOneSpellIfNew,#num=SID_TOUCH_OF_FLAME,#class=&TouchofFlame);
       Send(self,@CreateOneSpellIfNew,#num=SID_ZAP,#class=&Zap);
       Send(self,@CreateOneSpellIfNew,#num=SID_VAMPIRIC_DRAIN,#class=&VampiricDrain);
@@ -2933,7 +3135,7 @@ messages:
       Send(self,@CreateOneSpellIfNew,#num=SID_DETECT_INVISIBLE,#class=&DetectInvisible);
       Send(self,@CreateOneSpellIfNew,#num=SID_DETECT_GOOD,#class=&DetectGood);
       Send(self,@CreateOneSpellIfNew,#num=SID_DETECT_EVIL,#class=&DetectEvil);
-
+      Send(self,@CreateOneSpellIfNew,#num=SID_ICE_NOVA,#class=&IceNova);
 
       Send(self,@CreateOneSpellIfNew,#num=SID_NODEBURST,#class=&Nodeburst);
       Send(self,@CreateOneSpellIfNew,#num=SID_PURIFY,#class=&Purify);
@@ -3054,9 +3256,11 @@ messages:
       
       Send(self,@CreateOneSpellIfNew,#num=SID_DEATH_RIFT,#class=&DeathRift);
 
+      Send(self,@CreateOneSpellIfNew,#num=SID_MEDITATE,#class=&Meditate);
       Send(self,@CreateOneSpellIfNew,#num=SID_SET,#class=&Set);
       Send(self,@CreateOneSpellIfNew,#num=SID_LOADOUT,#class=&Loadout);
       Send(self,@CreateOneSpellIfNew,#num=SID_CONVEYANCE,#class=&Conveyance);
+      Send(self,@CreateOneSpellIfNew,#num=SID_PHASE,#class=&Phase);
 
       % Trance may be searched for frequently, leave at end of list
       Send(self,@CreateOneSpellIfNew,#num=SID_TRANCE,#class=&Trance);
@@ -3089,6 +3293,7 @@ messages:
       Send(self,@CreateOneItemAttIfNew,#num=WA_PARALYZER,#class=&WeapAttParalyzer);
       Send(self,@CreateOneItemAttIfNew,#num=WA_TWISTER,#class=&WeapAttTwister);
       Send(self,@CreateOneItemAttIfNew,#num=WA_VAMPER,#class=&WeapAttVamper);
+      Send(self,@CreateOneItemAttIfNew,#num=WA_SIPHON,#class=&WeapAttSiphon);
       Send(self,@CreateOneItemAttIfNew,#num=WA_PURGER,#class=&WeapAttPurger);
       Send(self,@CreateOneItemAttIfNew,#num=WA_GUILD_HALL_DEFENDER,#class=&WeapAttGuildHallDefender);
       Send(self,@CreateOneItemAttIfNew,#num=WA_FACTION,#class=&WeapAttFactionDefender);
@@ -4573,6 +4778,40 @@ messages:
 
       return;
    }
+   
+   GetQormas()
+   {
+      return poQormas;
+   }
+   
+   StartQormas()
+   {
+      % Qormas already started!
+      if (poQormas <> $)
+      {
+         return system_failure_rsc;
+      }
+      
+      poQormas = Create(&Qormas);
+      Send(poQormas,@StartQormas);
+      
+      return system_success_rsc;
+   }
+   
+   EndQormas()
+   {
+      % No Qormas to end!
+      if (poQormas = $)
+      {
+         return system_failure_rsc;
+      }
+      
+      Send(poQormas,@EndQormas);
+      Send(poQormas,@Delete);
+      poQormas = $;
+      
+      return system_success_rsc;
+   }
 
    GetChaosNight()
    "Return true if there's a chaos night (\"frenzy\") running."
@@ -4758,104 +4997,25 @@ messages:
       }
 
       plItemTemplates = $;
-      plItemTemplates = cons(create(&Arsenic),plItemTemplates);
-      plItemTemplates = cons(create(&Book),plItemTemplates);
-      plItemTemplates = cons(create(&Chalice),plItemTemplates);
-      plItemTemplates = cons(create(&Key),plItemTemplates);
-      plItemTemplates = cons(create(&SanctuaryKey),plItemTemplates);
-      plItemTemplates = cons(create(&SpiderEggShell),plItemTemplates);
-      plItemTemplates = cons(create(&SpiderEgg),plItemTemplates);
-      plItemTemplates = cons(create(&Scepter),plItemTemplates);
-      plItemTemplates = cons(create(&Torch),plItemTemplates);
-      plItemTemplates = cons(create(&Gauntlet),plItemTemplates);
-      plItemTemplates = cons(create(&JewelOfFroz),plItemTemplates);
 
-      plItemTemplates = cons(create(&ChainArmor),plItemTemplates);
-      plItemTemplates = cons(create(&PlateArmor),plItemTemplates);
-      plItemTemplates = cons(create(&LeatherArmor),plItemTemplates);
-      plItemTemplates = cons(create(&ScaleArmor),plItemTemplates);
-      plItemTemplates = cons(create(&Robe),plItemTemplates);
-      plItemTemplates = cons(create(&LightRobe),plItemTemplates);
-      plItemTemplates = cons(create(&DiscipleRobe),plItemTemplates);
-      plItemTemplates = cons(create(&LightDiscipleRobe),plItemTemplates);
-      plItemTemplates = cons(create(&NeruditeArmor),plItemTemplates);
-
-      plItemTemplates = cons(create(&Helm),plItemTemplates);
-      plItemTemplates = cons(create(&SimpleHelm),plItemTemplates);
-      plItemTemplates = cons(create(&Circlet),plItemTemplates);
-      plItemTemplates = cons(create(&IvyCirclet),plItemTemplates);
-      plItemTemplates = cons(create(&PantsC),plItemTemplates);
-      plItemTemplates = cons(create(&PantsA),plItemTemplates);
-      plItemTemplates = cons(create(&Shirt),plItemTemplates);
-      plItemTemplates = cons(create(&Skirt),plItemTemplates);
-      plItemTemplates = cons(create(&Tanktop),plItemTemplates);
-      plItemTemplates = cons(create(&ShortSkirt),plItemTemplates);
-      plItemTemplates = cons(create(&RoyalShirt),plItemTemplates);
-
-      plItemTemplates = cons(create(&GoldShield),plItemTemplates);
-      plItemTemplates = cons(create(&MetalShield),plItemTemplates);
-      plItemTemplates = cons(create(&KnightShield),plItemTemplates);
-      plItemTemplates = cons(create(&OrcShield),plItemTemplates);
-      plItemTemplates = cons(create(&GuildShield),plItemTemplates);
-
-      plItemTemplates = cons(create(&Flask),plItemTemplates);
-      plItemTemplates = cons(create(&Chess),plItemTemplates);
-      plItemTemplates = cons(create(&ShadowAmulet),plItemTemplates);
-
-      plItemTemplates = cons(create(&BlueDragonScale),plItemTemplates);
-      plItemTemplates = cons(create(&DarkAngelFeather),plItemTemplates);
-      plItemTemplates = cons(create(&Diamond),plItemTemplates);
-      plItemTemplates = cons(create(&Elderberry),plItemTemplates);
-      plItemTemplates = cons(create(&Emerald),plItemTemplates);
-      plItemTemplates = cons(create(&Fairywing),plItemTemplates);
-      plItemTemplates = cons(create(&Herbs),plItemTemplates);
-      plItemTemplates = cons(create(&Money),plItemTemplates);
-      plItemTemplates = cons(create(&BlueMushroom),plItemTemplates);
-      plItemTemplates = cons(create(&PurpleMushroom),plItemTemplates);
-      plItemTemplates = cons(create(&RedMushroom),plItemTemplates);
-      plItemTemplates = cons(create(&GreenMushroom),plItemTemplates);
-      plItemTemplates = cons(create(&YellowMushroom),plItemTemplates);
-      plItemTemplates = cons(create(&GrayMushroom),plItemTemplates);
-      plItemTemplates = cons(create(&CyanMushroom),plItemTemplates);
-      plItemTemplates = cons(create(&Mushroom),plItemTemplates);
-      plItemTemplates = cons(create(&OrcTooth),plItemTemplates);
-      plItemTemplates = cons(create(&Ruby),plItemTemplates);
-      plItemTemplates = cons(create(&Sapphire),plItemTemplates);
-      plItemTemplates = cons(create(&EntrootBerry),plItemTemplates);
-
-      plItemTemplates = cons(create(&ShamanBlood),plItemTemplates);
-      plItemTemplates = cons(create(&UncutSeraphym),plItemTemplates);
-      plItemTemplates = cons(create(&PolishedSeraphym),plItemTemplates);
-      plItemTemplates = cons(create(&FireSand),plItemTemplates);
-      plItemTemplates = cons(create(&DragonflyEye),plItemTemplates);
-      plItemTemplates = cons(create(&KriipaClaw),plItemTemplates);
-      plItemTemplates = cons(create(&Solagh),plItemTemplates);
-      plItemTemplates = cons(create(&WebMoss),plItemTemplates);
-      plItemTemplates = cons(create(&YrxlSap),plItemTemplates);
-      plItemTemplates = cons(create(&RainbowFern),plItemTemplates);
-
-      plItemTemplates = cons(create(&Letter),plItemTemplates);
-      plItemTemplates = cons(create(&InscriptionItem),plItemTemplates);
-      plItemTemplates = cons(create(&BallotItem),plItemTemplates);
-      plItemTemplates = cons(create(&Rose),plItemTemplates);
-      plItemTemplates = cons(create(&OreChunk),plItemTemplates);
-      plItemTemplates = cons(create(&NeruditeOreChunk),plItemTemplates);
-      plItemTemplates = cons(create(&ShrunkenHead),plItemTemplates);
-      plItemTemplates = cons(create(&Lute),plItemTemplates);
-      plItemTemplates = cons(create(&FineLute),plItemTemplates);
-      plItemTemplates = cons(create(&TrueLute),plItemTemplates);
-      plItemTemplates = cons(create(&JalaNecklace),plItemTemplates);
-      plItemTemplates = cons(create(&OrcPitBossHead),plItemTemplates);
-      plItemTemplates = cons(create(&FormulaScroll),plItemTemplates);
-      plItemTemplates = cons(create(&AvarShamanFeather),plItemTemplates);
-      plItemTemplates = cons(create(&ChickenSoup),plItemTemplates);
-      plItemTemplates = cons(create(&RecipeScroll),plItemTemplates);
-      plItemTemplates = cons(create(&Sacchaqua),plItemTemplates);
-
+      % Misc
       plItemTemplates = cons(create(&SwordShardA),plItemTemplates);
       plItemTemplates = cons(create(&SwordShardB),plItemTemplates);
       plItemTemplates = cons(create(&SwordShardC),plItemTemplates);
       plItemTemplates = cons(create(&SwordShardD),plItemTemplates);
+
+      plItemTemplates = cons(create(&NeruditeOreChunk),plItemTemplates);
+      plItemTemplates = cons(create(&OreChunk),plItemTemplates);
+      plItemTemplates = cons(create(&AvarShamanFeather),plItemTemplates);
+      plItemTemplates = cons(create(&OrcPitBossHead),plItemTemplates);
+      plItemTemplates = cons(create(&FormulaScroll),plItemTemplates);
+      plItemTemplates = cons(create(&ChickenSoup),plItemTemplates);
+      plItemTemplates = cons(create(&RecipeScroll),plItemTemplates);
+      plItemTemplates = cons(create(&Sacchaqua),plItemTemplates);
+
+      plItemTemplates = cons(create(&RebelFlag),plItemTemplates);
+      plItemTemplates = cons(create(&PrincessFlag),plItemTemplates);
+      plItemTemplates = cons(create(&DukeFlag),plItemTemplates);
 
       plItemTemplates = cons(create(&OfferingRiija),plItemTemplates);
       plItemTemplates = cons(create(&OfferingFaren),plItemTemplates);
@@ -4864,67 +5024,145 @@ messages:
       plItemTemplates = cons(create(&OfferingKraanan),plItemTemplates);
       plItemTemplates = cons(create(&OfferingJala),plItemTemplates);
 
-      plItemTemplates = cons(create(&Arrow),plItemTemplates);
-      plItemTemplates = cons(create(&SilverArrow),plItemTemplates);
-      plItemTemplates = cons(create(&NeruditeArrow),plItemTemplates);
+      plItemTemplates = cons(create(&Letter),plItemTemplates);
+      plItemTemplates = cons(create(&InscriptionItem),plItemTemplates);
+      plItemTemplates = cons(create(&BallotItem),plItemTemplates);
 
-      plItemTemplates = cons(create(&Apple),plItemTemplates);
-      plItemTemplates = cons(create(&Bread),plItemTemplates);
-      plItemTemplates = cons(create(&InkyCap),plItemTemplates);
-      plItemTemplates = cons(create(&Meatpie),plItemTemplates);
-      plItemTemplates = cons(create(&Mug),plItemTemplates);
-      plItemTemplates = cons(create(&KocatanMug),plItemTemplates);
-      plItemTemplates = cons(create(&Goblet),plItemTemplates);
-      plItemTemplates = cons(create(&Snack),plItemTemplates);
-      plItemTemplates = cons(create(&Waterskin),plItemTemplates);
-      plItemTemplates = cons(create(&Grapes),plItemTemplates);
-      plItemTemplates = cons(create(&Spideye),plItemTemplates);
-      plItemTemplates = cons(create(&Pork),plItemTemplates);
-      plItemTemplates = cons(create(&Drumstick),plItemTemplates);
-      plItemTemplates = cons(create(&Soup),plItemTemplates);
-      plItemTemplates = cons(create(&FortuneCookie),plItemTemplates);
-      plItemTemplates = cons(create(&StoutGoblet),plItemTemplates);
-      plItemTemplates = cons(create(&WineGoblet),plItemTemplates);
-      plItemTemplates = cons(create(&Stew),plItemTemplates);
-      plItemTemplates = cons(create(&Cheese),plItemTemplates);
+      plItemTemplates = cons(create(&RoomKeyCopy),plItemTemplates);
+      plItemTemplates = cons(create(&RoomKey),plItemTemplates);
+      plItemTemplates = cons(create(&SanctuaryKey),plItemTemplates);
+      plItemTemplates = cons(create(&Key),plItemTemplates);
 
-      plItemTemplates = cons(create(&BerserkerRing),plItemTemplates);
-      plItemTemplates = cons(create(&RingOfLethargy),plItemTemplates);
-      plItemTemplates = cons(create(&RingInvisibility),plItemTemplates);
-      plItemTemplates = cons(create(&RingWedding),plItemTemplates);
-
-      plItemTemplates = cons(create(&AcidRing),plItemTemplates);
-      plItemTemplates = cons(create(&ColdRing),plItemTemplates);
-      plItemTemplates = cons(create(&FireRing),plItemTemplates);
-      plItemTemplates = cons(create(&ShockRing),plItemTemplates);
+      plItemTemplates = cons(create(&SpiderEggShell),plItemTemplates);
+      plItemTemplates = cons(create(&SpiderEgg),plItemTemplates);
+      plItemTemplates = cons(create(&Scepter),plItemTemplates);
+      plItemTemplates = cons(create(&Chess),plItemTemplates);
+      plItemTemplates = cons(create(&ShrunkenHead),plItemTemplates);
+      plItemTemplates = cons(create(&Rose),plItemTemplates);
+      plItemTemplates = cons(create(&Book),plItemTemplates);
       
+      plItemTemplates = cons(create(&JalaNecklace),plItemTemplates);
+      plItemTemplates = cons(create(&NecromancerAmulet),plItemTemplates);
+      plItemTemplates = cons(create(&ShadowAmulet),plItemTemplates);
+      
+      plItemTemplates = cons(create(&TrueLute),plItemTemplates);
+      plItemTemplates = cons(create(&FineLute),plItemTemplates);
+      plItemTemplates = cons(create(&Lute),plItemTemplates);
+
+      plItemTemplates = cons(create(&ManaCrystal),plItemTemplates);
+      plItemTemplates = cons(create(&Chalice),plItemTemplates);
+      plItemTemplates = cons(create(&Prism),plItemTemplates);
+      plItemTemplates = cons(create(&JewelOfFroz),plItemTemplates);
+      plItemTemplates = cons(create(&Gauntlet),plItemTemplates);
+      plItemTemplates = cons(create(&Torch),plItemTemplates);
+
+      plItemTemplates = cons(create(&PotionSplitter),plItemTemplates);
+      plItemTemplates = cons(create(&WandSplitter),plItemTemplates);
+      plItemTemplates = cons(create(&ScrollSplitter),plItemTemplates);
+      plItemTemplates = cons(create(&ReagentBag),plItemTemplates);
+
+      plItemTemplates = cons(create(&Money),plItemTemplates);
+
+      % Gems
+      plItemTemplates = cons(create(&GemRiijaPower),plItemTemplates);
+      plItemTemplates = cons(create(&GemKraananPower),plItemTemplates);
+      plItemTemplates = cons(create(&GemFarenPower),plItemTemplates);
+      plItemTemplates = cons(create(&GemShalillePower),plItemTemplates);
+      plItemTemplates = cons(create(&GemJalaPower),plItemTemplates);
+      plItemTemplates = cons(create(&GemQorPower),plItemTemplates);
+
+      plItemTemplates = cons(create(&GemColdResistance),plItemTemplates);
+      plItemTemplates = cons(create(&GemFireResistance),plItemTemplates);
+      plItemTemplates = cons(create(&GemShockResistance),plItemTemplates);
+      plItemTemplates = cons(create(&GemAcidResistance),plItemTemplates);
+      plItemTemplates = cons(create(&GemSlashResistance),plItemTemplates);
+      plItemTemplates = cons(create(&GemThrustResistance),plItemTemplates);
+      plItemTemplates = cons(create(&GemBludgeonResistance),plItemTemplates);
+      plItemTemplates = cons(create(&GemPierceResistance),plItemTemplates);
+      plItemTemplates = cons(create(&GemRemove),plItemTemplates);
+
+      % God Gifts
+      plItemTemplates = cons(create(&SpecialGiftTwo),plItemTemplates);
+      plItemTemplates = cons(create(&XeoMask),plItemTemplates);
+      plItemTemplates = cons(create(&DaemonMask),plItemTemplates);
+      plItemTemplates = cons(create(&MummyMask),plItemTemplates);
+      plItemTemplates = cons(create(&FeyMask),plItemTemplates);
+      plItemTemplates = cons(create(&ShrunkenHeadMask),plItemTemplates);
+      plItemTemplates = cons(create(&CowMask),plItemTemplates);
+
+      plItemTemplates = cons(create(&SpecialGift),plItemTemplates);
+      plItemTemplates = cons(create(&SkullMask),plItemTemplates);
+      plItemTemplates = cons(create(&RatMask),plItemTemplates);
+      plItemTemplates = cons(create(&AntMask),plItemTemplates);
+      plItemTemplates = cons(create(&TrollMask),plItemTemplates);
+      plItemTemplates = cons(create(&KriipaMask),plItemTemplates);
+
+      plItemTemplates = cons(create(&FarenCharm),plItemTemplates);
+      plItemTemplates = cons(create(&RiijaCharm),plItemTemplates);
+      plItemTemplates = cons(create(&KraananCharm),plItemTemplates);
+      plItemTemplates = cons(create(&ShalilleCharm),plItemTemplates);
+      plItemTemplates = cons(create(&QorCharm),plItemTemplates);
+      plItemTemplates = cons(create(&Gift),plItemTemplates);
+
+      % Scrolls
+      plItemTemplates = cons(create(&DarknessScroll),plItemTemplates);
+      plItemTemplates = cons(create(&DiscordScroll),plItemTemplates);
+      plItemTemplates = cons(create(&DispellIllusionScroll),plItemTemplates);
+      plItemTemplates = cons(create(&FinalRitesScroll),plItemTemplates);
+      plItemTemplates = cons(create(&FlashScroll),plItemTemplates);
+      plItemTemplates = cons(create(&HeatScroll),plItemTemplates);
+      plItemTemplates = cons(create(&KillingFieldScroll),plItemTemplates);
+      plItemTemplates = cons(create(&MartyrScroll),plItemTemplates);
+      plItemTemplates = cons(create(&SummonPoisonFogScroll),plItemTemplates);
+      plItemTemplates = cons(create(&SporeBurstScroll),plItemTemplates);
+      plItemTemplates = cons(create(&TruceScroll),plItemTemplates);
+      plItemTemplates = cons(create(&WindScroll),plItemTemplates);
+      plItemTemplates = cons(create(&SetScroll),plItemTemplates);
+      plItemTemplates = cons(create(&LoadoutScroll),plItemTemplates);
+      plItemTemplates = cons(create(&MirthScroll),plItemTemplates);
+      plItemTemplates = cons(create(&MelancholyScroll),plItemTemplates);
+
+      % Wands
+      plItemTemplates = cons(create(&BonkStick),plItemTemplates);
+      plItemTemplates = cons(create(&SwapWand),plItemTemplates);
+      plItemTemplates = cons(create(&SlitherWand),plItemTemplates);
+      plItemTemplates = cons(create(&ShatterWand),plItemTemplates);
+      plItemTemplates = cons(create(&SeduceWand),plItemTemplates);
+      plItemTemplates = cons(create(&PurifyWand),plItemTemplates);
+      plItemTemplates = cons(create(&MarkOfDishonorWand),plItemTemplates);
+      plItemTemplates = cons(create(&LightningWand),plItemTemplates);
+      plItemTemplates = cons(create(&IdentifyWand),plItemTemplates);
+      plItemTemplates = cons(create(&BlindWand),plItemTemplates);
+      plItemTemplates = cons(create(&HoldWand),plItemTemplates);
+      plItemTemplates = cons(create(&EnfeebleWand),plItemTemplates);
+      plItemTemplates = cons(create(&BrittleWand),plItemTemplates);
+      plItemTemplates = cons(create(&HospiceWand),plItemTemplates);
+      plItemTemplates = cons(create(&DementWand),plItemTemplates);
+      plItemTemplates = cons(create(&ForgetWand),plItemTemplates);
+
+      % Rods
+      plItemTemplates = cons(create(&ArmorOfGortRod),plItemTemplates);
+      plItemTemplates = cons(create(&DetectInvisibleRod),plItemTemplates);
+      plItemTemplates = cons(create(&SuperStrengthRod),plItemTemplates);
+      plItemTemplates = cons(create(&BlessRod),plItemTemplates);
+      plItemTemplates = cons(create(&StaffOfJolting),plItemTemplates);
+      plItemTemplates = cons(create(&VampireWand),plItemTemplates);
+      plItemTemplates = cons(create(&HealWand),plItemTemplates);
+
+      % Rings
       plItemTemplates = cons(create(&RingDefense),plItemTemplates);
 
-      plItemTemplates = cons(create(&HealWand),plItemTemplates);
-      plItemTemplates = cons(create(&VampireWand),plItemTemplates);
-      plItemTemplates = cons(create(&StaffOfJolting),plItemTemplates);
-      plItemTemplates = cons(create(&BlessRod),plItemTemplates);
-      plItemTemplates = cons(create(&ArmorOfGortRod),plItemTemplates);
-      plItemTemplates = cons(create(&SuperStrengthRod),plItemTemplates);
-      plItemTemplates = cons(create(&DetectInvisibleRod),plItemTemplates);
+      plItemTemplates = cons(create(&RingWedding),plItemTemplates);
+      plItemTemplates = cons(create(&RingInvisibility),plItemTemplates);
+      plItemTemplates = cons(create(&BerserkerRing),plItemTemplates);
+      plItemTemplates = cons(create(&RingOfLethargy),plItemTemplates);
 
-      plItemTemplates = cons(create(&ShortSword),plItemTemplates);
-      plItemTemplates = cons(create(&LongSword),plItemTemplates);
-      plItemTemplates = cons(create(&MysticSword),plItemTemplates);
-      plItemTemplates = cons(create(&RiijaSword),plItemTemplates);
-      plItemTemplates = cons(create(&NeruditeSword),plItemTemplates);
-      plItemTemplates = cons(create(&Mace),plItemTemplates);
-      plItemTemplates = cons(create(&Scimitar),plItemTemplates);
-      plItemTemplates = cons(create(&Hammer),plItemTemplates);
-      plItemTemplates = cons(create(&Axe),plItemTemplates);
-      plItemTemplates = cons(create(&Longbow),plItemTemplates);
-      plItemTemplates = cons(create(&BattleBow),plItemTemplates);
-      plItemTemplates = cons(create(&PracticeBow),plItemTemplates);
-      plItemTemplates = cons(create(&NeruditeBow),plItemTemplates);
-      plItemTemplates = cons(create(&GoldSword),plItemTemplates);
+      plItemTemplates = cons(create(&AcidRing),plItemTemplates);
+      plItemTemplates = cons(create(&ShockRing),plItemTemplates);
+      plItemTemplates = cons(create(&FireRing),plItemTemplates);
+      plItemTemplates = cons(create(&ColdRing),plItemTemplates);
 
-      plItemTemplates = cons(create(&MagicBow),plItemTemplates);
-
+      % Potions
       plItemTemplates = cons(create(&ForgetPotionFaren),plItemTemplates);
       plItemTemplates = cons(create(&ForgetPotionKraanan),plItemTemplates);
       plItemTemplates = cons(create(&ForgetPotionQor),plItemTemplates);
@@ -4933,21 +5171,11 @@ messages:
       plItemTemplates = cons(create(&ForgetPotionRiija),plItemTemplates);
       plItemTemplates = cons(create(&ForgetPotionJala),plItemTemplates);
 
-      plItemTemplates = cons(create(&FarenCharm),plItemTemplates);
-      plItemTemplates = cons(create(&RiijaCharm),plItemTemplates);
-      plItemTemplates = cons(create(&KraananCharm),plItemTemplates);
-      plItemTemplates = cons(create(&ShalilleCharm),plItemTemplates);
-      plItemTemplates = cons(create(&QorCharm),plItemTemplates);
-
-      plItemTemplates = cons(create(&Gift),plItemTemplates);
-
       plItemTemplates = cons(create(&IllusionaryFormPotion),plItemTemplates);
-
       plItemTemplates = cons(create(&PurifyPotion),plItemTemplates);
       plItemTemplates = cons(create(&CurePoisonPotion),plItemTemplates);
       plItemTemplates = cons(create(&RemoveCursePotion),plItemTemplates);
       plItemTemplates = cons(create(&CureDiseasePotion),plItemTemplates);
-
       plItemTemplates = cons(create(&ShadowFormPotion),plItemTemplates);
       plItemTemplates = cons(create(&AnonymityPotion),plItemTemplates);
       plItemTemplates = cons(create(&BaitPotion),plItemTemplates);
@@ -4970,74 +5198,130 @@ messages:
       plItemTemplates = cons(create(&FeignDeathPotion),plItemTemplates);
       plItemTemplates = cons(create(&RescuePotion),plItemTemplates);
       plItemTemplates = cons(create(&EagleEyesPotion),plItemTemplates);
-
-      plItemTemplates = cons(create(&NecromancerAmulet),plItemTemplates);
-      plItemTemplates = cons(create(&HunterSword),plItemTemplates);
-      plItemTemplates = cons(create(&Prism),plItemTemplates);
-
-      plItemTemplates = cons(create(&SwapWand),plItemTemplates);
-      plItemTemplates = cons(create(&SlitherWand),plItemTemplates);
-      plItemTemplates = cons(create(&ShatterWand),plItemTemplates);
-      plItemTemplates = cons(create(&SeduceWand),plItemTemplates);
-      plItemTemplates = cons(create(&PurifyWand),plItemTemplates);
-      plItemTemplates = cons(create(&MarkOfDishonorWand),plItemTemplates);
-      plItemTemplates = cons(create(&LightningWand),plItemTemplates);
-      plItemTemplates = cons(create(&IdentifyWand),plItemTemplates);
-      plItemTemplates = cons(create(&BlindWand),plItemTemplates);
-      plItemTemplates = cons(create(&HoldWand),plItemTemplates);
-      plItemTemplates = cons(create(&EnfeebleWand),plItemTemplates);
-      plItemTemplates = cons(create(&BrittleWand),plItemTemplates);
-      plItemTemplates = cons(create(&HospiceWand),plItemTemplates);
-      plItemTemplates = cons(create(&DementWand),plItemTemplates);
-      plItemTemplates = cons(create(&ForgetWand),plItemTemplates);
-
       plItemTemplates = cons(create(&CloakPotion),plItemTemplates);
       plItemTemplates = cons(create(&ResistAcidPotion),plItemTemplates);
       plItemTemplates = cons(create(&FreeActionPotion),plItemTemplates);
 
-      plItemTemplates = cons(create(&DukeFlag),plItemTemplates);
-      plItemTemplates = cons(create(&PrincessFlag),plItemTemplates);
-      plItemTemplates = cons(create(&RebelFlag),plItemTemplates);
+      plItemTemplates = cons(create(&Arsenic),plItemTemplates);
+      plItemTemplates = cons(create(&Flask),plItemTemplates);
 
-      plItemTemplates = cons(create(&RoomKey),plItemTemplates);
-      plItemTemplates = cons(create(&RoomKeyCopy),plItemTemplates);
-      plItemTemplates = cons(create(&Mint),plItemTemplates);
-
+      % Reagents
       plItemTemplates = cons(create(&RedHeartStone),plItemTemplates);
       plItemTemplates = cons(create(&SkyHeartStone),plItemTemplates);
       plItemTemplates = cons(create(&BlueHeartStone),plItemTemplates);
       plItemTemplates = cons(create(&BrownHeartStone),plItemTemplates);
 
-      plItemTemplates = cons(create(&DarknessScroll),plItemTemplates);
-      plItemTemplates = cons(create(&DiscordScroll),plItemTemplates);
-      plItemTemplates = cons(create(&DispellIllusionScroll),plItemTemplates);
-      plItemTemplates = cons(create(&FinalRitesScroll),plItemTemplates);
-      plItemTemplates = cons(create(&FlashScroll),plItemTemplates);
-      plItemTemplates = cons(create(&HeatScroll),plItemTemplates);
-      plItemTemplates = cons(create(&KillingFieldScroll),plItemTemplates);
-      plItemTemplates = cons(create(&MartyrScroll),plItemTemplates);
-      plItemTemplates = cons(create(&SummonPoisonFogScroll),plItemTemplates);
-      plItemTemplates = cons(create(&SporeBurstScroll),plItemTemplates);
-      plItemTemplates = cons(create(&TruceScroll),plItemTemplates);
-      plItemTemplates = cons(create(&WindScroll),plItemTemplates);
-      plItemTemplates = cons(create(&SetScroll),plItemTemplates);
-      plItemTemplates = cons(create(&LoadoutScroll),plItemTemplates);
+      plItemTemplates = cons(create(&ShamanBlood),plItemTemplates);
+      plItemTemplates = cons(create(&YrxlSap),plItemTemplates);
+      plItemTemplates = cons(create(&PolishedSeraphym),plItemTemplates);
+      plItemTemplates = cons(create(&UncutSeraphym),plItemTemplates);
+      plItemTemplates = cons(create(&FireSand),plItemTemplates);
+      plItemTemplates = cons(create(&KriipaClaw),plItemTemplates);
+      plItemTemplates = cons(create(&DragonflyEye),plItemTemplates);
+      plItemTemplates = cons(create(&WebMoss),plItemTemplates);
+      plItemTemplates = cons(create(&RainbowFern),plItemTemplates);
+      plItemTemplates = cons(create(&Solagh),plItemTemplates);
 
-      plItemTemplates = cons(create(&SpecialGift),plItemTemplates);
-      plItemTemplates = cons(create(&SkullMask),plItemTemplates);
-      plItemTemplates = cons(create(&RatMask),plItemTemplates);
-      plItemTemplates = cons(create(&AntMask),plItemTemplates);
-      plItemTemplates = cons(create(&TrollMask),plItemTemplates);
-      plItemTemplates = cons(create(&KriipaMask),plItemTemplates);
+      plItemTemplates = cons(create(&Diamond),plItemTemplates);
+      plItemTemplates = cons(create(&Ruby),plItemTemplates);
+      plItemTemplates = cons(create(&Sapphire),plItemTemplates);
+      plItemTemplates = cons(create(&Emerald),plItemTemplates);
+      plItemTemplates = cons(create(&BlueDragonScale),plItemTemplates);
+      plItemTemplates = cons(create(&DarkAngelFeather),plItemTemplates);
+      plItemTemplates = cons(create(&Fairywing),plItemTemplates);
+      plItemTemplates = cons(create(&OrcTooth),plItemTemplates);
+      plItemTemplates = cons(create(&GrayMushroom),plItemTemplates);
+      plItemTemplates = cons(create(&CyanMushroom),plItemTemplates);
+      plItemTemplates = cons(create(&YellowMushroom),plItemTemplates);
+      plItemTemplates = cons(create(&GreenMushroom),plItemTemplates);
+      plItemTemplates = cons(create(&PurpleMushroom),plItemTemplates);
+      plItemTemplates = cons(create(&BlueMushroom),plItemTemplates);
+      plItemTemplates = cons(create(&RedMushroom),plItemTemplates);
+      plItemTemplates = cons(create(&Mushroom),plItemTemplates);
+      plItemTemplates = cons(create(&EntrootBerry),plItemTemplates);
+      plItemTemplates = cons(create(&Elderberry),plItemTemplates);
+      plItemTemplates = cons(create(&Herbs),plItemTemplates);
 
-      plItemTemplates = cons(create(&SpecialGiftTwo),plItemTemplates);
-      plItemTemplates = cons(create(&XeoMask),plItemTemplates);
-      plItemTemplates = cons(create(&DaemonMask),plItemTemplates);
-      plItemTemplates = cons(create(&MummyMask),plItemTemplates);
-      plItemTemplates = cons(create(&FeyMask),plItemTemplates);
-      plItemTemplates = cons(create(&ShrunkenHeadMask),plItemTemplates);
+      % Edibles
+      plItemTemplates = cons(create(&KocatanMug),plItemTemplates);
+      plItemTemplates = cons(create(&WineGoblet),plItemTemplates);
+      plItemTemplates = cons(create(&Goblet),plItemTemplates);
+      plItemTemplates = cons(create(&StoutGoblet),plItemTemplates);
+      plItemTemplates = cons(create(&Mug),plItemTemplates);
+      plItemTemplates = cons(create(&Waterskin),plItemTemplates);
 
-      plItemTemplates = cons(create(&ManaCrystal),plItemTemplates);
+      plItemTemplates = cons(create(&Mint),plItemTemplates);
+      plItemTemplates = cons(create(&InkyCap),plItemTemplates);
+      plItemTemplates = cons(create(&Snack),plItemTemplates);
+      plItemTemplates = cons(create(&FortuneCookie),plItemTemplates);
+      plItemTemplates = cons(create(&Spideye),plItemTemplates);
+      plItemTemplates = cons(create(&Pork),plItemTemplates);
+      plItemTemplates = cons(create(&Drumstick),plItemTemplates);
+      plItemTemplates = cons(create(&Meatpie),plItemTemplates);
+      plItemTemplates = cons(create(&Stew),plItemTemplates);
+      plItemTemplates = cons(create(&Soup),plItemTemplates);
+      plItemTemplates = cons(create(&Cheese),plItemTemplates);
+      plItemTemplates = cons(create(&Bread),plItemTemplates);
+      plItemTemplates = cons(create(&Grapes),plItemTemplates);
+      plItemTemplates = cons(create(&Apple),plItemTemplates);
+
+      % Head
+      plItemTemplates = cons(create(&Helm),plItemTemplates);
+      plItemTemplates = cons(create(&SimpleHelm),plItemTemplates);
+      plItemTemplates = cons(create(&IvyCirclet),plItemTemplates);
+      plItemTemplates = cons(create(&Circlet),plItemTemplates);
+
+      % Shields
+      plItemTemplates = cons(create(&GuildShield),plItemTemplates);
+      plItemTemplates = cons(create(&OrcShield),plItemTemplates);
+      plItemTemplates = cons(create(&KnightShield),plItemTemplates);
+      plItemTemplates = cons(create(&GoldShield),plItemTemplates);
+      plItemTemplates = cons(create(&MetalShield),plItemTemplates);
+
+      % Armor
+      plItemTemplates = cons(create(&NeruditeArmor),plItemTemplates);
+      plItemTemplates = cons(create(&PlateArmor),plItemTemplates);
+      plItemTemplates = cons(create(&ScaleArmor),plItemTemplates);
+      plItemTemplates = cons(create(&ChainArmor),plItemTemplates);
+      plItemTemplates = cons(create(&LeatherArmor),plItemTemplates);      
+
+      % Clothing
+      plItemTemplates = cons(create(&LightDiscipleRobe),plItemTemplates);
+      plItemTemplates = cons(create(&DiscipleRobe),plItemTemplates);
+      plItemTemplates = cons(create(&LightRobe),plItemTemplates);
+      plItemTemplates = cons(create(&Robe),plItemTemplates);
+      plItemTemplates = cons(create(&Skirt),plItemTemplates);
+      plItemTemplates = cons(create(&ShortSkirt),plItemTemplates);
+      plItemTemplates = cons(create(&PantsC),plItemTemplates);
+      plItemTemplates = cons(create(&PantsA),plItemTemplates);
+      plItemTemplates = cons(create(&RoyalShirt),plItemTemplates);
+      plItemTemplates = cons(create(&Shirt),plItemTemplates);
+      plItemTemplates = cons(create(&Tanktop),plItemTemplates);
+
+      % Ammo
+      plItemTemplates = cons(create(&NeruditeArrow),plItemTemplates);
+      plItemTemplates = cons(create(&SilverArrow),plItemTemplates);
+      plItemTemplates = cons(create(&Arrow),plItemTemplates);
+
+      % Weapons
+      plItemTemplates = cons(create(&MagicBow),plItemTemplates);
+      plItemTemplates = cons(create(&NeruditeBow),plItemTemplates);
+      plItemTemplates = cons(create(&Longbow),plItemTemplates);
+      plItemTemplates = cons(create(&BattleBow),plItemTemplates);
+      plItemTemplates = cons(create(&PracticeBow),plItemTemplates);   
+
+      plItemTemplates = cons(create(&TestSword),plItemTemplates);
+      plItemTemplates = cons(create(&HunterSword),plItemTemplates);
+      plItemTemplates = cons(create(&GoldSword),plItemTemplates);
+      plItemTemplates = cons(create(&RiijaSword),plItemTemplates);
+      plItemTemplates = cons(create(&NeruditeSword),plItemTemplates);
+      plItemTemplates = cons(create(&MysticSword),plItemTemplates);
+      plItemTemplates = cons(create(&Scimitar),plItemTemplates);
+      plItemTemplates = cons(create(&LongSword),plItemTemplates);
+      plItemTemplates = cons(create(&ShortSword),plItemTemplates);
+      plItemTemplates = cons(create(&Axe),plItemTemplates);
+      plItemTemplates = cons(create(&Hammer),plItemTemplates);
+      plItemTemplates = cons(create(&Mace),plItemTemplates);
 
       return;
    }
@@ -5906,9 +6190,8 @@ messages:
       }
 
       iDisableDuration = (Send(Send(self,@GetSettings),@GetLogoffPenaltyGhostTime)*150)/100;
-      iDisableDuration = iDisableDuration * 1000;   % convert to ms
 
-      ptLogoffPenaltyTempDisable = createTimer(self,@LogoffPenaltyTempDisableTrigger,iDisableDuration);
+      ptLogoffPenaltyTempDisable = CreateTimer(self,@LogoffPenaltyTempDisableTrigger,iDisableDuration);
 
       return;
    }
@@ -6176,6 +6459,7 @@ messages:
       }
       return iCount;
    }
+
    AdminListPlayersWithSpell(num=$,includeDMs=FALSE)
    "Admin Supported."
    {
@@ -6217,6 +6501,74 @@ messages:
       SetString(sPlayers,GetTempString());
 
       return sPlayers;
+   }
+
+   FindPlayersOverLearnCount()
+   {
+      local i, iStartingLearnPoints, iMaxLearnPoints, iTotalLearnPoints, iList,
+            lSpells, lSkills;
+
+      iList = $;
+      for i in plUsers
+      {
+         if Send(i,@GetSpellList) = $
+            OR IsClass(i,&DM)
+            OR IsClass(i,&EscapedConvict)
+         {
+            continue;
+         }
+
+         iMaxLearnPoints = 0;
+         iTotalLearnPoints = 0;
+
+         iMaxLearnPoints = Send(poSettings,@GetMaxLearnPoints)
+                              + (Send(i,@GetRawIntellect) * 2) / 5;
+
+         iTotalLearnPoints = Send(i,@GetTotalLearnPoints);
+
+         if iTotalLearnPoints > iMaxLearnPoints
+         {
+            iList = Cons(i,iList);
+         }
+      }
+
+      if iList = $
+      {
+         Debug("No players over learn count.");
+
+         return $;
+      }
+
+      for i in iList
+      {
+         lSkills = Send(i,@GetSkillSchoolLevels);
+         lSpells = Send(i,@GetSpellSchoolLevels);
+
+         % Give debug message for each player, describing what levels they have.
+         Debug("Player ",i,Send(i,@GetTrueName)," has extra levels! Has ",
+               Nth(lSkills,1)," WC ",Nth(lSpells,1)," Shal'ille ",Nth(lSpells,2),
+               " Qor ",Nth(lSpells,3)," Kraanan ",Nth(lSpells,4)," Faren ",
+               Nth(lSpells,5)," Riija and ",Nth(lSpells,6), " Jala. Player has ",
+               Send(i,@GetRawIntellect)," intellect.");
+      }
+
+      return iList;
+   }
+
+   FixPlayersOverLearnCount()
+   "This assumes all 'bugged' players are due to having level 1 Riija."
+   {
+      local i, iList;
+
+      iList = Send(self,@FindPlayersOverLearnCount);
+
+      for i in iList
+      {
+         Send(i,@StripSpellsOfSchool,#school=SS_RIIJA);
+         Debug("Removed Riija from ",i,Send(i,@GetTrueName));
+      }
+
+      return;
    }
 
    AdminListPlayersOverHP(hp=$)
@@ -6656,7 +7008,7 @@ messages:
        if oTotem <> $
           AND IsClass(oTotem,&RadiusEnchantmentTotem)
           AND plSpellTotems <> $
-          AND FindListElem(plSpellTotems,oTotem) = 0
+          AND FindListElem(plSpellTotems,oTotem) <> 0
        {
           plSpellTotems = DelListElem(plSpellTotems,oTotem);
        }
@@ -6674,7 +7026,277 @@ messages:
  
        return;
     }
- 
+
+    GetResistanceName(type=ATCK_WEAP_ALL)
+    {
+       if type = ATCK_WEAP_ALL
+       {
+          return weapon_resistance_name;
+       }
+       if type = ATCK_WEAP_PIERCE
+       {
+          return pierce_resistance_name;
+       }
+       if type = ATCK_WEAP_SLASH
+       {
+          return slash_resistance_name;
+       }
+       if type = ATCK_WEAP_THRUST
+       {
+          return thrust_resistance_name;
+       }
+       if type = ATCK_WEAP_BLUDGEON
+       {
+          return bludgeon_resistance_name;
+       }
+       if type = -ATCK_SPELL_ALL
+       {
+          return magic_resistance_name;
+       }
+       if type = -ATCK_SPELL_FIRE
+       {
+          return fire_resistance_name;
+       }
+       if type = -ATCK_SPELL_COLD
+       {
+          return cold_resistance_name;
+       }
+       if type = -ATCK_SPELL_SHOCK
+       {
+          return shock_resistance_name;
+       }
+       if type = -ATCK_SPELL_ACID
+       {
+          return acid_resistance_name;
+       }
+       if type = -ATCK_SPELL_HOLY
+       {
+          return holy_resistance_name;
+       }
+       if type = -ATCK_SPELL_UNHOLY
+       {
+          return unholy_resistance_name;
+       }
+       if type = -ATCK_SPELL_QUAKE
+       {
+          return quake_resistance_name;
+       }
+       
+       return unknown_resistance_name;
+    }
+    
+    GetAttackDamageTypeName(type=ATCK_WEAP_ALL)
+    {
+       if type = ATCK_WEAP_ALL
+       {
+          return weapon_damage_name;
+       }
+       if type = ATCK_WEAP_NERUDITE
+       {
+          return nerudite_damage_name;
+       }
+       if type = ATCK_WEAP_SILVER
+       {
+          return silver_damage_name;
+       }
+       if type = ATCK_WEAP_MAGIC
+       {
+          return enchanted_damage_name;
+       }
+       if type = ATCK_WEAP_NONMAGIC
+       {
+          return nonmagic_damage_name;
+       }
+       if type = ATCK_WEAP_PIERCE
+       {
+          return pierce_damage_name;
+       }
+       if type = ATCK_WEAP_SLASH
+       {
+          return slash_damage_name;
+       }
+       if type = ATCK_WEAP_THRUST
+       {
+          return thrust_damage_name;
+       }
+       if type = ATCK_WEAP_BLUDGEON
+       {
+          return bludgeon_damage_name;
+       }
+       
+       return unknown_damage_name;
+    }
+    
+    GetSpellDamageTypeName(type=ATCK_SPELL_ALL)
+    {
+       if type = ATCK_SPELL_ALL
+       {
+          return magic_damage_name;
+       }
+       if type = ATCK_SPELL_FIRE
+       {
+          return fire_damage_name;
+       }
+       if type = ATCK_SPELL_COLD
+       {
+          return cold_damage_name;
+       }
+       if type = ATCK_SPELL_SHOCK
+       {
+          return shock_damage_name;
+       }
+       if type = ATCK_SPELL_ACID
+       {
+          return acid_damage_name;
+       }
+       if type = ATCK_SPELL_HOLY
+       {
+          return holy_damage_name;
+       }
+       if type = ATCK_SPELL_UNHOLY
+       {
+          return unholy_damage_name;
+       }
+       if type = ATCK_SPELL_QUAKE
+       {
+          return quake_damage_name;
+       }
+       
+       return unknown_damage_name;
+    }
+   
+    GetAttackTypeList()
+    "Returns a list of weapon damage types for functions to loop through."
+    {
+       local lDamageTypes;
+       lDamageTypes = [ATCK_WEAP_PIERCE];
+       lDamageTypes = Cons(ATCK_WEAP_SLASH,lDamageTypes);
+       lDamageTypes = Cons(ATCK_WEAP_BLUDGEON,lDamageTypes);
+       lDamageTypes = Cons(ATCK_WEAP_THRUST,lDamageTypes);
+       lDamageTypes = Cons(ATCK_WEAP_NONMAGIC,lDamageTypes);
+       lDamageTypes = Cons(ATCK_WEAP_MAGIC,lDamageTypes);
+       lDamageTypes = Cons(ATCK_WEAP_NERUDITE,lDamageTypes);
+       lDamageTypes = Cons(ATCK_WEAP_SILVER,lDamageTypes);
+       lDamageTypes = Cons(ATCK_WEAP_ALL,lDamageTypes);
+       
+       return lDamageTypes;
+    }
+    
+    GetSpellTypeList()
+    {
+       local lDamageTypes;
+       lDamageTypes = [ATCK_SPELL_QUAKE];
+       lDamageTypes = Cons(ATCK_SPELL_UNHOLY,lDamageTypes);
+       lDamageTypes = Cons(ATCK_SPELL_HOLY,lDamageTypes);
+       lDamageTypes = Cons(ATCK_SPELL_ACID,lDamageTypes);
+       lDamageTypes = Cons(ATCK_SPELL_SHOCK,lDamageTypes);
+       lDamageTypes = Cons(ATCK_SPELL_COLD,lDamageTypes);
+       lDamageTypes = Cons(ATCK_SPELL_FIRE,lDamageTypes);
+       lDamageTypes = Cons(ATCK_SPELL_ALL,lDamageTypes);
+       
+       return lDamageTypes;
+    }
+
+   AddObjectAttributeToMasterList(attribute=$)
+   {
+      if attribute <> $
+         AND (plObject_attributes_master = $
+         OR FindListElem(plObject_attributes_master, attribute) = 0)
+      {
+         plObject_attributes_master = Cons(attribute,plObject_attributes_master);
+      }
+      return;
+   }
+    
+   RemoveObjectAttributeFromMasterList(attribute=$)
+   {
+      if attribute <> $
+         AND plObject_attributes_master <> $
+         AND FindListElem(plObject_attributes_master, attribute) <> 0
+      {
+         plObject_attributes_master = DelListElem(plObject_attributes_master,attribute);
+      }
+      return;
+   }
+
+   AddResistance(what = $, value = NO_RESISTANCE, resistance_list = $)
+   "Adds a resistance of type (what) and value (value).  "
+   "If a resistance already exists, the new value will be added to the old."
+   {
+      local i;
+
+      for i in resistance_list
+      {
+         if Nth(i,1) = what
+         {
+            SetNth(i,2,value + Nth(i,2));
+            if Nth(i,2) = NO_RESISTANCE
+            {
+               resistance_list = DelListElem(resistance_list,i);
+            }
+
+            return resistance_list;
+         }
+      } 
+
+      resistance_list = Cons([what,value],resistance_list);
+
+      return resistance_list;
+   }
+
+   RemoveAllResistances(resistance_list = $)
+   "This clears the resistance list... for if someone's char is really messed "
+   "up."
+   {
+      local i;
+
+      for i in resistance_list
+      {
+         resistance_list = Send(self,@RemoveResistance,#what=Nth(i,1),#value=Nth(i,2),#resistance_list=resistance_list);
+      }
+
+      return resistance_list;
+   }
+
+   RemoveResistance(what = $, value = 0, resistance_list = $)
+   "Removes a resistance of type (what) and value (value)"
+   {
+      resistance_list = Send(self,@AddResistance,#what=what,#value=-value,#resistance_list=resistance_list);
+
+      return resistance_list;
+   }
+   
+   GetUniqueIPs()
+   {
+      local i,j,lUserIPList,lIP,bFound;
+      
+      lUserIPList = $;
+      
+      for i in plUsers_logged_on
+      {
+         bFound = FALSE;
+      
+         lIP = send(i,@GetIP);
+         
+         for j in lUserIPList
+         {
+            if Nth(lIP,1) = Nth(j,1)
+               AND Nth(lIP,2) = Nth(j,2)
+               AND Nth(lIP,3) = Nth(j,3)
+               AND Nth(lIP,4) = Nth(j,4)
+            {
+               bFound = TRUE;
+            }
+         }
+         if NOT bFound
+         {
+            lUserIPList = Cons(lIP,lUserIPList);
+         }
+      }
+      
+      return Length(lUserIPList);
+   }
+
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

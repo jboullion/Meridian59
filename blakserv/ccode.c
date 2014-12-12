@@ -131,27 +131,148 @@ int C_ClearPacket(int object_id,local_var_type *local_vars,
 	return NIL;
 }
 
-int C_GodLog(int object_id,
-			 local_var_type *local_vars,
-			 int num_normal_parms,
-			 parm_node normal_parm_array[],
-			 int num_name_parms,
-			 parm_node name_parm_array[])
+int C_GodLog(int object_id,local_var_type *local_vars,
+			int num_normal_parms,parm_node normal_parm_array[],
+			int num_name_parms,parm_node name_parm_array[])
 {
-	char buf[2000];
-	val_type parameter1;
-	kod_statistics *kstat;
+	int i;
+	val_type each_val;
 	class_node *c;
+	char buf[2000];
+	kod_statistics *kstat;
+	
+	/* need the current interpreting class in case there are debug strings,
+	which are stored in the class. */
+
 	kstat = GetKodStats();
+	
 	c = GetClassByID(kstat->interpreting_class);
-
-	parameter1 = RetrieveValue(object_id,local_vars,normal_parm_array[1].type,
-			normal_parm_array[1].value);
-
-	sprintf(buf,"Object %i (CLASS %s) Reports: %s\n"
-		,object_id,c->fname,GetClassDebugStr(c,parameter1.v.data));
-	gprintf(buf);
-	return NIL;
+	if (c == NULL)
+	{
+		bprintf("C_GodLog can't find class %i, can't print out debug strs\n",
+			kstat->interpreting_class);
+		return NIL;
+	}
+	
+	sprintf(buf,"[%s] ",BlakodDebugInfo());
+	
+	for (i=0;i<num_normal_parms;i++)
+	{
+		each_val = RetrieveValue(object_id,local_vars,normal_parm_array[i].type,
+			normal_parm_array[i].value);
+		
+		switch (each_val.v.tag)
+		{
+		case TAG_DEBUGSTR :
+			sprintf(buf+strlen(buf),"%s",GetClassDebugStr(c,each_val.v.data));
+			break;
+			
+		case TAG_RESOURCE :
+			{
+				resource_node *r;
+				r = GetResourceByID(each_val.v.data);
+				if (r == NULL)
+				{
+					sprintf(buf+strlen(buf),"<unknown RESOURCE %i>",each_val.v.data);
+				}
+				else
+				{
+					sprintf(buf+strlen(buf),"%s",r->resource_val);
+				}
+			}
+			break;
+			
+		case TAG_INT :
+			sprintf(buf+strlen(buf),"%d",(int)each_val.v.data);
+			break;
+			
+		case TAG_CLASS :
+			{
+				class_node *c;
+				c = GetClassByID(each_val.v.data);
+				if (c == NULL)
+				{
+					sprintf(buf+strlen(buf),"<unknown CLASS %i>",each_val.v.data);
+				}
+				else
+				{
+					strcat(buf,"&");
+					strcat(buf,c->class_name);
+				}
+			}
+			break;
+			
+		case TAG_STRING :
+			{
+				int lenBuffer, lenString;
+				string_node *snod = GetStringByID(each_val.v.data);
+				
+				if (snod == NULL)
+				{
+					bprintf("C_GodLog can't find string %i\n",each_val.v.data);
+					return NIL;
+				}
+				lenString = snod->len_data;
+				lenBuffer = strlen(buf);
+				memcpy(buf + lenBuffer,snod->data,snod->len_data);
+				*(buf + lenBuffer + snod->len_data) = 0;
+			}
+			break;
+			
+		case TAG_TEMP_STRING :
+			{
+				int len_buf;
+				string_node *snod;
+				
+				snod = GetTempString();
+				len_buf = strlen(buf);
+				memcpy(buf + len_buf,snod->data,snod->len_data);
+				*(buf + len_buf + snod->len_data) = 0;
+			}
+			break;
+			
+		case TAG_OBJECT :
+			{
+				object_node *o;
+				class_node *c;
+				user_node *u;
+				
+				/* for objects, print object number */
+				
+				o = GetObjectByID(each_val.v.data);
+				if (o == NULL)
+				{
+					sprintf(buf+strlen(buf),"<OBJECT %i invalid>",each_val.v.data);
+					break;
+				}
+				c = GetClassByID(o->class_id);
+				if (c == NULL)
+				{
+					sprintf(buf+strlen(buf),"<OBJECT %i unknown class>",each_val.v.data);
+					break;
+				}
+				
+				if (c->class_id == USER_CLASS || c->class_id == DM_CLASS ||
+					c->class_id == GUEST_CLASS || c->class_id == ADMIN_CLASS)
+				{
+					u = GetUserByObjectID(o->object_id);
+					if (u == NULL)
+					{
+						sprintf(buf+strlen(buf),"<OBJECT %i broken user>",each_val.v.data);
+						break;
+					}
+					sprintf(buf+strlen(buf),"OBJECT %i",each_val.v.data);
+					break;
+				}
+			}
+			//FALLTHRU
+		default :
+			sprintf(buf+strlen(buf),"%s %s",GetTagName(each_val),GetDataName(each_val));
+			break;
+      }
+   }
+   gprintf("%s\n",buf);
+   return NIL;
 }
 
 int C_Debug(int object_id,local_var_type *local_vars,
@@ -1431,6 +1552,32 @@ int C_GetTimeRemaining(int object_id,local_var_type *local_vars,
 	return ret_val.int_val;
 }
 
+int C_IsTimer(int object_id,local_var_type *local_vars,
+			 int num_normal_parms,parm_node normal_parm_array[],
+			 int num_name_parms,parm_node name_parm_array[])
+{
+	val_type var_check,ret_val;
+	
+	var_check = RetrieveValue(object_id,local_vars,normal_parm_array[0].type,
+			     normal_parm_array[0].value);
+	
+	ret_val.v.tag = TAG_INT;
+	
+	if (var_check.v.tag == TAG_NIL)
+	{
+		ret_val.v.data = False;
+		bprintf("C_IsTimer called with NIL timer by object %i",object_id);
+		return ret_val.int_val;
+	}
+	
+	if (var_check.v.tag == TAG_TIMER || var_check.v.tag == TAG_NIL)
+		ret_val.v.data = True;
+	else
+		ret_val.v.data = False;
+	
+	return ret_val.int_val;
+}
+
 int C_LoadRoom(int object_id,local_var_type *local_vars,
 			   int num_normal_parms,parm_node normal_parm_array[],
 			   int num_name_parms,parm_node name_parm_array[])
@@ -1453,7 +1600,7 @@ int C_RoomData(int object_id,local_var_type *local_vars,
 			   int num_normal_parms,parm_node normal_parm_array[],
 			   int num_name_parms,parm_node name_parm_array[])
 {
-	val_type room_val,ret_val,rows,cols,security;
+	val_type room_val,ret_val,rows,cols,security,rowshighres,colshighres;
 	roomdata_node *room;
 	
 	room_val = RetrieveValue(object_id,local_vars,normal_parm_array[0].type,
@@ -1478,8 +1625,18 @@ int C_RoomData(int object_id,local_var_type *local_vars,
 	cols.v.data = room->file_info.cols;
 	security.v.tag = TAG_INT;
 	security.v.data = room->file_info.security;
-	
+	rowshighres.v.tag = TAG_INT;
+	rowshighres.v.data = room->file_info.rowshighres;
+	colshighres.v.tag = TAG_INT;
+	colshighres.v.data = room->file_info.colshighres;
+
 	ret_val.int_val = NIL;
+	
+	ret_val.v.data = Cons(colshighres,ret_val);
+	ret_val.v.tag = TAG_LIST;
+	
+	ret_val.v.data = Cons(rowshighres,ret_val);
+	ret_val.v.tag = TAG_LIST;
 	
 	ret_val.v.data = Cons(security,ret_val);
 	ret_val.v.tag = TAG_LIST;
@@ -1563,6 +1720,191 @@ int C_CanMoveInRoom(int object_id,local_var_type *local_vars,
 	/* remember that kod uses 1-based arrays, and of course we don't */
 	ret_val.v.data = CanMoveInRoom(r,row_source.v.data-1,col_source.v.data-1,
 		row_dest.v.data-1,col_dest.v.data-1);
+	
+	return ret_val.int_val;
+}
+
+int C_CanMoveInRoomHighRes(int object_id,local_var_type *local_vars,
+					int num_normal_parms,parm_node normal_parm_array[],
+					int num_name_parms,parm_node name_parm_array[])
+{
+	val_type ret_val,room_val;
+	val_type row_source,col_source,finerow_source,finecol_source;
+	val_type row_dest,col_dest,finerow_dest,finecol_dest;
+	roomdata_node *r;
+	
+	/* determine whether there's a wall between the row,col to row,col
+    * in the given room.
+    */
+	
+	ret_val.v.tag = TAG_INT;
+	ret_val.v.data = false;
+	
+	room_val = RetrieveValue(object_id,local_vars,normal_parm_array[0].type,
+		normal_parm_array[0].value);
+	row_source = RetrieveValue(object_id,local_vars,normal_parm_array[1].type,
+		normal_parm_array[1].value);
+	col_source = RetrieveValue(object_id,local_vars,normal_parm_array[2].type,
+		normal_parm_array[2].value);
+	finerow_source = RetrieveValue(object_id,local_vars,normal_parm_array[3].type,
+		normal_parm_array[3].value);
+	finecol_source = RetrieveValue(object_id,local_vars,normal_parm_array[4].type,
+		normal_parm_array[4].value);
+	
+	row_dest = RetrieveValue(object_id,local_vars,normal_parm_array[5].type,
+		normal_parm_array[5].value);
+	col_dest = RetrieveValue(object_id,local_vars,normal_parm_array[6].type,
+		normal_parm_array[6].value);
+	finerow_dest = RetrieveValue(object_id,local_vars,normal_parm_array[7].type,
+		normal_parm_array[7].value);
+	finecol_dest = RetrieveValue(object_id,local_vars,normal_parm_array[8].type,
+		normal_parm_array[8].value);
+	
+	if (room_val.v.tag != TAG_ROOM_DATA)
+	{
+		bprintf("C_CanMoveInRoomHighRes can't use non room %i,%i\n",
+			room_val.v.tag,room_val.v.data);
+		return ret_val.int_val;
+	}
+	
+	if (row_source.v.tag != TAG_INT)
+	{
+		bprintf("C_CanMoveInRoomHighRes row source can't use non int %i,%i\n",
+			row_source.v.tag,row_source.v.data);
+		return ret_val.int_val;
+	}
+	
+	if (col_source.v.tag != TAG_INT)
+	{
+		bprintf("C_CanMoveInRoomHighRes col source can't use non int %i,%i\n",
+			col_source.v.tag,col_source.v.data);
+		return ret_val.int_val;
+	}
+	
+	if (finerow_source.v.tag != TAG_INT)
+	{
+		bprintf("C_CanMoveInRoomHighRes finerow source can't use non int %i,%i\n",
+			finerow_source.v.tag,finerow_source.v.data);
+		return ret_val.int_val;
+	}
+	
+	if (finecol_source.v.tag != TAG_INT)
+	{
+		bprintf("C_CanMoveInRoomHighRes finecol source can't use non int %i,%i\n",
+			finecol_source.v.tag,finecol_source.v.data);
+		return ret_val.int_val;
+	}
+
+	if (row_dest.v.tag != TAG_INT)
+	{
+		bprintf("C_CanMoveInRoomHighRes row dest can't use non int %i,%i\n",
+			row_dest.v.tag,row_dest.v.data);
+		return ret_val.int_val;
+	}
+	
+	if (col_dest.v.tag != TAG_INT)
+	{
+		bprintf("C_CanMoveInRoomHighRes col dest can't use non int %i,%i\n",
+			col_dest.v.tag,col_dest.v.data);
+		return ret_val.int_val;
+	}
+	
+	if (finerow_dest.v.tag != TAG_INT)
+	{
+		bprintf("C_CanMoveInRoomHighRes finerow dest can't use non int %i,%i\n",
+			finerow_dest.v.tag,finerow_dest.v.data);
+		return ret_val.int_val;
+	}
+	
+	if (finecol_dest.v.tag != TAG_INT)
+	{
+		bprintf("C_CanMoveInRoomHighRes finecol dest can't use non int %i,%i\n",
+			finecol_dest.v.tag,finecol_dest.v.data);
+		return ret_val.int_val;
+	}
+
+	r = GetRoomDataByID(room_val.v.data);
+	if (r == NULL)
+	{
+		bprintf("C_CanMoveInRoomHighRes can't find room %i\n",room_val.v.data);
+		return ret_val.int_val;
+	}
+	
+	/* remember that kod uses 1-based arrays, and of course we don't */
+	ret_val.v.data = CanMoveInRoomHighRes(r,
+		row_source.v.data-1,col_source.v.data-1,finerow_source.v.data,finecol_source.v.data,
+		row_dest.v.data-1,col_dest.v.data-1,finerow_dest.v.data,finecol_dest.v.data);
+	
+	return ret_val.int_val;
+}
+
+int C_GetHeight(int object_id,local_var_type *local_vars,
+					int num_normal_parms,parm_node normal_parm_array[],
+					int num_name_parms,parm_node name_parm_array[])
+{
+	val_type ret_val,room_val;
+	val_type row,col,finerow,finecol;
+	roomdata_node *r;
+
+	ret_val.v.tag = TAG_INT;
+	ret_val.v.data = false;
+	
+	room_val = RetrieveValue(object_id,local_vars,normal_parm_array[0].type,
+		normal_parm_array[0].value);
+	row = RetrieveValue(object_id,local_vars,normal_parm_array[1].type,
+		normal_parm_array[1].value);
+	col = RetrieveValue(object_id,local_vars,normal_parm_array[2].type,
+		normal_parm_array[2].value);
+	finerow = RetrieveValue(object_id,local_vars,normal_parm_array[3].type,
+		normal_parm_array[3].value);
+	finecol = RetrieveValue(object_id,local_vars,normal_parm_array[4].type,
+		normal_parm_array[4].value);
+		
+	if (room_val.v.tag != TAG_ROOM_DATA)
+	{
+		bprintf("C_GetHeight can't use non room %i,%i\n",
+			room_val.v.tag,room_val.v.data);
+		return ret_val.int_val;
+	}
+	
+	if (row.v.tag != TAG_INT)
+	{
+		bprintf("C_GetHeight row can't use non int %i,%i\n",
+			row.v.tag,row.v.data);
+		return ret_val.int_val;
+	}
+	
+	if (col.v.tag != TAG_INT)
+	{
+		bprintf("C_GetHeight col can't use non int %i,%i\n",
+			col.v.tag,col.v.data);
+		return ret_val.int_val;
+	}
+	
+	if (finerow.v.tag != TAG_INT)
+	{
+		bprintf("C_GetHeight finerow can't use non int %i,%i\n",
+			finerow.v.tag,finerow.v.data);
+		return ret_val.int_val;
+	}
+	
+	if (finecol.v.tag != TAG_INT)
+	{
+		bprintf("C_GetHeight finecol can't use non int %i,%i\n",
+			finecol.v.tag,finecol.v.data);
+		return ret_val.int_val;
+	}
+	
+	r = GetRoomDataByID(room_val.v.data);
+	if (r == NULL)
+	{
+		bprintf("C_GetHeight can't find room %i\n",room_val.v.data);
+		return ret_val.int_val;
+	}
+	
+	/* remember that kod uses 1-based arrays, and of course we don't */
+	ret_val.v.data = GetHeight(r,
+		row.v.data-1,col.v.data-1,finerow.v.data,finecol.v.data);
 	
 	return ret_val.int_val;
 }
@@ -1925,7 +2267,7 @@ int C_GetTime(int object_id,local_var_type *local_vars,
         than that.  So, we subtract off time to compensate.
     */
 
-	ret_val.v.data = GetTime() - 1267405200L;    // Offset to sometime in March 2010
+	ret_val.v.data = GetTime() - 1388534400L;    // Offset to January 2014
 	
 	return ret_val.int_val;
 }
@@ -1936,17 +2278,28 @@ int C_GetTickCount(int object_id,local_var_type *local_vars,
 {
 	val_type ret_val;
 	
+	// GetMilliCount is from blakerv/time.c. 
+	// Its return is in ms and with a precision of 1ms.
+	// It also provides Windows & Linux implementations.
+	UINT64 tick = GetMilliCount();
+	
+	// but tick is unsigned 64-bit integer
+	// and blakserv integers are signed with only 28-bits
+	// the high-bit is the sign at bit-index 27/31
+	// recapitulate:
+	// 0x00000000 = 0000 0000 0000 0000 0000 0000 0000 = 0
+	// 0x07FFFFFF = 0111 1111 1111 1111 1111 1111 1111 = 134217727
+	// 0x08000000 = 1000 0000 0000 0000 0000 0000 0000 = -134217728
+	// 0x0FFFFFFF = 1111 1111 1111 1111 1111 1111 1111 = -1
+	
+	// convert:
+	// 1) We grab the low 32-bits by casting to unsigned int (so next & can easily be done in 32-bit registers)
+	// 2) We grab the value within the positive blakserv-integer mask by &
+	// 3) This means our returned tick rolls over every 134217.728s (~37 hrs)
+	// 4) Roll-Over means anything calculating the timespan of something before and after the roll-over
+	//    will return a negative timespan (but only once).
 	ret_val.v.tag = TAG_INT;
-
-    /*  We must subtract a number from the system time due to size
-        limitations within the blakod.  Blakod uses 32 bit values,
-        -4 bits for type and -1 bit for sign.  This leaves us with
-        27 bits for value,  This only allows us to have 134M or so
-        as a positive value.  Current system time is a bit larger
-        than that.  So, we subtract off time to compensate.
-    */
-
-	ret_val.v.data = GetTickCount();    // W32API 10ms-16ms precision call
+	ret_val.v.data = (int)((unsigned int)tick & MAX_KOD_INT);
 	
 	return ret_val.int_val;
 }
@@ -2358,28 +2711,23 @@ int C_MinigameStringToNumber(int object_id,local_var_type *local_vars,
 	return ret_val.int_val;
 }
 
-//RecordStat() Kod function
 int C_RecordStat(int object_id,local_var_type *local_vars,
 				int num_normal_parms,parm_node normal_parm_array[],
 				int num_name_parms,parm_node name_parm_array[])
-{
-	if (ConfigBool(MYSQL_ENABLED) == False)
-		return -1;
-
+{	
 	val_type stat_type, stat1, stat2, stat3, stat4, stat5, stat6, stat7;
-	int success = 0;
+	resource_node *r_who_damaged, *r_who_attacker, *r_weapon;
 
-
-	//The first paramenter to RecordStat() should alwasy be a STAT_TYPE
+	// The first paramenter to RecordStat() should alwasy be a STAT_TYPE
 	stat_type = RetrieveValue(object_id,local_vars,normal_parm_array[0].type, normal_parm_array[0].value);
 	if (stat_type.v.tag != TAG_INT)
 	{
-		dprintf("STAT_TYPE expected in C_RecordStat() as first parameter");
+		bprintf("STAT_TYPE expected in C_RecordStat() as first parameter");
 		return NIL;
 	}
 
 	/*
-	STAT_TYPE enum located in blakserv.h, Also defined in blakston.khd to match between C code and Kod code.
+	STAT_TYPE enum located in database.h, Also defined in blakston.khd to match between C code and Kod code.
 	this switch statement should evaluate what kind of statistic is being passed, parse the remaining parameters
 	and send them to the function in database.c that actually writes the data to the MySQL Database
 	*/
@@ -2388,57 +2736,50 @@ int C_RecordStat(int object_id,local_var_type *local_vars,
 		case STAT_TOTALMONEY:
 			if (num_normal_parms != 2)
 			{
-				dprintf("Wrong Number of Paramenters in C_RecordStat() STAT_TOTALMONEY");
+				bprintf("Wrong Number of Paramenters in C_RecordStat() STAT_TOTALMONEY");
 				break;
 			}
+			
 			stat1 = RetrieveValue(object_id,local_vars,normal_parm_array[1].type, normal_parm_array[1].value);
+			
 			if (stat1.v.tag != TAG_INT)
 			{
-				dprintf("Wrong Type of Parameter in C_RecordStat() STAT_TOTALMONEY");
+				bprintf("Wrong Type of Parameter in C_RecordStat() STAT_TOTALMONEY");
 				break;
 			}
 			else
 			{
-				TotalMoneyRecord * record = (TotalMoneyRecord*)malloc(sizeof(TotalMoneyRecord));
-				record->total_money = stat1.v.data;
-
-				record_node * recordnode = (record_node*)malloc(sizeof(record_node));
-				recordnode->type=stat_type.v.data;
-				recordnode->data=record;
-				EnqueueRecord(recordnode);
+				MySQLRecordTotalMoney(stat1.v.data);
 			}
 			break;
 
 		case STAT_MONEYCREATED:
 			if (num_normal_parms != 2)
 			{
-				dprintf("Wrong Number of Paramenters in C_RecordStat() STAT_MONEYCREATED");
+				bprintf("Wrong Number of Paramenters in C_RecordStat() STAT_MONEYCREATED");
 				break;
 			}
+
 			stat1 = RetrieveValue(object_id,local_vars,normal_parm_array[1].type, normal_parm_array[1].value);
+			
 			if (stat1.v.tag != TAG_INT)
 			{
-				dprintf("Wrong Type of Parameter in C_RecordStat() STAT_TOTALMONEY");
+				bprintf("Wrong Type of Parameter in C_RecordStat() STAT_TOTALMONEY");
 				break;
 			}
 			else
 			{
-				MoneyCreatedRecord * record = (MoneyCreatedRecord*)malloc(sizeof(MoneyCreatedRecord));
-				record->money_created = stat1.v.data;
-
-				record_node * recordnode = (record_node*)malloc(sizeof(record_node));
-				recordnode->type=stat_type.v.data;
-				recordnode->data=record;
-				EnqueueRecord(recordnode);
+				MySQLRecordMoneyCreated(stat1.v.data);				
 			}
 			break;
 
 		case STAT_ASSESS_DAM:
-			if (num_normal_parms == !8) 
+			if (num_normal_parms != 8) 
 			{
-				dprintf("Wrong Number of Paramenters in C_RecordStat() STAT_ASSESS_DAM");
+				bprintf("Wrong Number of Paramenters in C_RecordStat() STAT_ASSESS_DAM");
 				break;
 			}
+
 			stat1 = RetrieveValue(object_id,local_vars,normal_parm_array[1].type, normal_parm_array[1].value);
 			stat2 = RetrieveValue(object_id,local_vars,normal_parm_array[2].type, normal_parm_array[2].value);
 			stat3 = RetrieveValue(object_id,local_vars,normal_parm_array[3].type, normal_parm_array[3].value);
@@ -2446,6 +2787,7 @@ int C_RecordStat(int object_id,local_var_type *local_vars,
 			stat5 = RetrieveValue(object_id,local_vars,normal_parm_array[5].type, normal_parm_array[5].value);
 			stat6 = RetrieveValue(object_id,local_vars,normal_parm_array[6].type, normal_parm_array[6].value);
 			stat7 = RetrieveValue(object_id,local_vars,normal_parm_array[7].type, normal_parm_array[7].value);
+			
 			if (stat1.v.tag != TAG_RESOURCE || 
 				stat2.v.tag != TAG_RESOURCE ||
 				stat3.v.tag != TAG_INT ||
@@ -2454,27 +2796,77 @@ int C_RecordStat(int object_id,local_var_type *local_vars,
 				stat6.v.tag != TAG_INT ||
 				stat7.v.tag != TAG_RESOURCE)
 			{
-				dprintf("Wrong Type of Parameter in C_RecordStat() STAT_ASSESS_DAM");
+				bprintf("Wrong Type of Parameter in C_RecordStat() STAT_ASSESS_DAM");
 				break;
 			}
 			else
-			{
-				PlayerAssessDamageRecord * record = (PlayerAssessDamageRecord*)malloc(sizeof(PlayerAssessDamageRecord));
-				record->res_who_damaged = stat1.v.data; record->res_who_attacker = stat2.v.data; record->aspell = stat3.v.data; record->atype = stat4.v.data;
-				record->damage_applied = stat5.v.data; record->damage_original = stat6.v.data; record->res_weapon = stat7.v.data;
+			{	
+				r_who_damaged = GetResourceByID(stat1.v.data);
+				r_who_attacker = GetResourceByID(stat2.v.data);
+				r_weapon = GetResourceByID(stat7.v.data);
 				
-				record_node * recordnode = (record_node*)malloc(sizeof(record_node));
-				recordnode->type=stat_type.v.data;
-				recordnode->data=record;
-				EnqueueRecord(recordnode);
+				if (!r_who_damaged || !r_who_attacker || !r_weapon ||
+					!r_who_damaged->resource_val || !r_who_attacker->resource_val || !r_weapon->resource_val)
+				{
+					bprintf("NULL string in C_RecordStat() for STAT_ASSESS_DAM");				
+				}
+				else
+				{					
+					MySQLRecordPlayerAssessDamage(
+						r_who_damaged->resource_val, 
+						r_who_attacker->resource_val, 
+						stat3.v.data, stat4.v.data, stat5.v.data, stat6.v.data, 
+						r_weapon->resource_val);
+				}
 			}
 			break;
 
-		case STAT_BLANK:
 		default:
-			dprintf("ERROR: Unknown stat_type (%d) in C_RecordStat",stat_type.v.data);
-			success = 1;
+			bprintf("ERROR: Unknown stat_type (%d) in C_RecordStat",stat_type.v.data);
 			break;
 	}
+
 	return NIL;
+}
+
+int C_GetSessionIP(int object_id,local_var_type *local_vars,
+            int num_normal_parms,parm_node normal_parm_array[],
+            int num_name_parms,parm_node name_parm_array[])
+{
+   val_type session_id, temp, ret_val;
+   int ip;
+   
+   session_id = RetrieveValue(object_id,local_vars,normal_parm_array[0].type,
+      normal_parm_array[0].value);
+      
+   
+	if (session_id.v.tag != TAG_SESSION)
+   {
+      bprintf("C_GetSessionIP can't use non session %i,%i\n",session_id.v.tag,session_id.v.data);
+      return NIL;
+   }
+
+   ip = GetIPBySessionId(session_id.v.data);
+   
+   ret_val.int_val = NIL;
+   
+   temp.v.tag = TAG_INT;
+   
+   temp.v.data = (ip >> 24) & 0xFF;
+   ret_val.v.data = Cons(temp,ret_val);
+   ret_val.v.tag = TAG_LIST;
+   
+   temp.v.data = (ip >> 16) & 0xFF;
+   ret_val.v.data = Cons(temp,ret_val);
+   ret_val.v.tag = TAG_LIST;
+   
+   temp.v.data = (ip >> 8) & 0xFF;
+   ret_val.v.data = Cons(temp,ret_val);
+   ret_val.v.tag = TAG_LIST;
+   
+   temp.v.data = ip & 0xFF;
+   ret_val.v.data = Cons(temp,ret_val);
+   ret_val.v.tag = TAG_LIST;
+   	
+	return ret_val.int_val;  
 }

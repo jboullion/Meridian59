@@ -138,12 +138,14 @@ void InitBkodInterpret(void)
 	ccall_table[CREATETIMER] = C_CreateTimer;
 	ccall_table[DELETETIMER] = C_DeleteTimer;
 	ccall_table[GETTIMEREMAINING] = C_GetTimeRemaining;
-	
+	ccall_table[ISTIMER] = C_IsTimer;
 	ccall_table[CREATEROOMDATA] = C_LoadRoom;
 	ccall_table[ROOMDATA] = C_RoomData;
 	ccall_table[CANMOVEINROOM] = C_CanMoveInRoom;
 	ccall_table[CANMOVEINROOMFINE] = C_CanMoveInRoomFine;
-	
+	ccall_table[CANMOVEINROOMHIGHRES] = C_CanMoveInRoomHighRes;
+	ccall_table[GETHEIGHT] = C_GetHeight;
+
 	ccall_table[CONS] = C_Cons;
 	ccall_table[FIRST] = C_First;
 	ccall_table[REST] = C_Rest;
@@ -173,6 +175,8 @@ void InitBkodInterpret(void)
 	ccall_table[RANDOM] = C_Random;
 	
 	ccall_table[RECORDSTAT] = C_RecordStat;
+   
+   ccall_table[GETSESSIONIP] = C_GetSessionIP;
 	
 	ccall_table[ABS] = C_Abs;
 	ccall_table[BOUND] = C_Bound;

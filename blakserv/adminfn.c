@@ -2000,7 +2000,6 @@ void AdminShowEachSysTimer(systimer_node *st)
 	case SYST_INTERFACE_UPDATE : s = "Update interface"; break;
 	case SYST_RESET_TRANSMITTED : s = "Reset TX count"; break;
 	case SYST_RESET_POOL : s = "Reset buffer pool"; break;
-	case SYST_MYSQL_CONNECT : s = "Check MySQL conn"; break;
 	default : s = "Unknown"; break;
 	}
 	aprintf("%i %-18s %-15s ",st->systimer_type,s,RelativeTimeStr(st->period));
@@ -2073,10 +2072,13 @@ void AdminShowCalls(int session_id,admin_parm_type parms[],
 		case CREATETIMER : strcpy(c_name, "CreateTimer"); break;
 		case DELETETIMER : strcpy(c_name, "DeleteTimer"); break;
 		case GETTIMEREMAINING : strcpy(c_name, "GetTimeRemaining"); break;
+		case ISTIMER : strcpy(c_name, "IsTimer"); break;
 		case CREATEROOMDATA : strcpy(c_name, "CreateRoomData"); break;
 		case ROOMDATA : strcpy(c_name, "RoomData"); break;
 		case CANMOVEINROOM : strcpy(c_name, "CanMoveInRoom"); break;
 		case CANMOVEINROOMFINE : strcpy(c_name, "CanMoveInRoomFine"); break;
+		case CANMOVEINROOMHIGHRES : strcpy(c_name, "CanMoveInRoomHighRes"); break;
+		case GETHEIGHT : strcpy(c_name, "GetHeight"); break;
 		case MINIGAMENUMBERTOSTRING : strcpy(c_name, "MinigameNumberToString"); break;
 		case MINIGAMESTRINGTONUMBER : strcpy(c_name, "MinigameStringToNumber"); break;
 		case CONS : strcpy(c_name, "Cons"); break;
@@ -2103,6 +2105,7 @@ void AdminShowCalls(int session_id,admin_parm_type parms[],
 		case ISOBJECT : strcpy(c_name, "IsObject"); break;
 		case RECYCLEUSER : strcpy(c_name, "RecycleUser"); break;
 		case RANDOM : strcpy(c_name, "Random"); break;
+		case RECORDSTAT : strcpy(c_name, "RecordStat"); break;
 			
 		default : 
 			sprintf(c_name,"Unknown (%i)",max_index);

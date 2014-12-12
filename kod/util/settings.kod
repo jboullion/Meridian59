@@ -85,17 +85,21 @@ properties:
 
    % Can't cast a teleport spell until this long after attacking someone.  Prevents
    % hit-and-run.  If 0, there's no restriction on when the spell can be cast.
-   piTeleportAttackDelaySec = 10 * 60
+   % Time in seconds.
+   piTeleportAttackDelaySec = 240
 
    % Rescue always takes at least this long to cast
    piRescueBaseDelaySec = 15
 
-   % Time in seconds that ghosts will last before taking a penalty
-   piLogoffPenaltyGhostTime = 480
+   % Time in milliseconds that ghosts will last before taking a penalty
+   piLogoffPenaltyGhostTime = 480 * 1000
 
-   % Time in seconds that outlaw / murderer ghosts will last before taking a penalty
-   piOutlawMurdererLogoffPenaltyGhostTime = 180
+   % Time in milliseconds that outlaw / murderer ghosts will last before taking a penalty
+   piOutlawMurdererLogoffPenaltyGhostTime = 180 * 1000
 
+   % If true, spellpower and duration are displayed for all spells cast.
+   pbDisplaySpellData = FALSE
+   
    %
    % Guild hall settings
    %
@@ -118,17 +122,8 @@ properties:
    % Speedhack & Teleport protection
    %
    
-   % Worst lagspike
-   piMoveMaxLag = 2000
-   
-   % Limit for processing simultaneous move requests (due to TCP)
-   piMoveMaxSimulReq = 8
-   
-   % The default interval the server expects from the client
-   piMoveDefaultInterval = 250
-   
-   % A tolerance that is given on each move step
-   piMoveStepTolerance = 100
+   % Maximum amount of tokens in the movement bucket
+   piMovementBucketMax = 15000000
    
    %
    % Miscellaneous
@@ -162,6 +157,9 @@ properties:
    % Number of reflections allowed per caster.
    piPlayerReflectionLimit = 2
 
+   % Number of minions allowed per caster.
+   piPlayerMinionLimit = 4
+
    % Minimum swings needed for a chance to improve a weaponcraft skill.
    piWeaponcraftImprovementMinimumSwings = 50
    
@@ -176,13 +174,25 @@ properties:
 
    % If enabled, logoff penalties do not rise exponentially, and instead remain flat
    pbFlatPenalties = TRUE
-   
+
+   % Length of hold effect players experience when logging or phasing in
+   piLogonDelay = 2500
+
    % Revenant speed setting
    piRevSpeed = 18
 
    % Alternate Justicar system - buying a pardon with an indulgence
    % is now possible for a flat fee (initially 1 million).
    piPardonIndulgenceCost = 1000000
+   
+   % The divisor for all skill post-softcap imp rates. Higher means harder. One means softcaps don't matter at all.
+   piSkillSoftcapPenalty = 5
+   
+   % The divisor for all spell post-softcap imp rates.
+   piSpellSoftcapPenalty = 4
+
+   % Turns damage scaling for chance to hit greater than 100 percent on or off
+   piDamageScaling = FALSE
 
 messages:
 
@@ -325,6 +335,11 @@ messages:
       return piRescueBaseDelaySec;
    }
 
+   DisplaySpellData()
+   {
+      return pbDisplaySpellData;
+   }
+
    %
    % Guild hall settings
    %
@@ -353,26 +368,11 @@ messages:
    % Speedhack & teleport protection
    %
 
-   GetMoveMaxLag()
+   GetMovementBucketMax()
    {
-	  return piMoveMaxLag;
+      return piMovementBucketMax;
    }
-   
-   GetMoveMaxSimulReq()
-   {
-      return piMoveMaxSimulReq;
-   }
-   
-   GetMoveDefaultInterval()
-   {
-      return piMoveDefaultInterval;
-   }
-   
-   GetMoveStepTolerance()
-   {
-      return piMoveStepTolerance;
-   }
-   
+
    %
    % Miscellaneous
    %
@@ -425,21 +425,31 @@ messages:
       return piPlayerReflectionLimit;
    }
 
+   GetPlayerMinionLimit()
+   {
+      return piPlayerMinionLimit;
+   }
+
    GetSwingsPerImproveCheck()
    {
       return piWeaponcraftImprovementMinimumSwings;
    }
-   
+
    GetFlatPenaltiesEnable()
    {
       return pbFlatPenalties;
    }
-   
+
+   GetLogonDelay()
+   {
+      return piLogonDelay;
+   }
+
    GetOutlawMurdererLogoffPenaltyGhostTime()
    {
       return piOutlawMurdererLogoffPenaltyGhostTime;
    }
-   
+
    GetResistRingLoseDurability()
    {
       return piResistRingLoseDurability;
@@ -453,6 +463,21 @@ messages:
 GetPardonIndulgenceCost()
    {
       return piPardonIndulgenceCost;
+   }
+
+   GetSkillSoftcapPenalty()
+   {
+      return piSkillSoftcapPenalty;
+   }
+   
+   GetSpellSoftcapPenalty()
+   {
+      return piSpellSoftcapPenalty;
+   }
+
+   GetDamageScaling()
+   {
+      return piDamageScaling;
    }
 
 end

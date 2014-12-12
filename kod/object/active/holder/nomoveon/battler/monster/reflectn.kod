@@ -50,11 +50,14 @@ classvars:
 
    viTreasure_type = TID_NONE
 
-   viSpeed = SPEED_AVERAGE
+   viSpeed = SPEED_VERY_FAST
    viAttack_type = ATCK_WEAP_SLASH
    viAttributes = 0
    viLevel = 45
    viDifficulty = 4
+
+   viVisionDistance = 60
+
    viKarma = 0
    viCashmin = 0
    viCashmax = 0
@@ -62,6 +65,7 @@ classvars:
    vrSound_miss = reflection_sound_miss
    vrSound_aware = reflection_sound_aware
    vrSound_death = reflection_sound_death
+   vrMinion_trouble = reflection_trouble
 
    viDefault_behavior = AI_FIGHT_MONSTERS | AI_FIGHT_NEWBIESAFE \
                         | AI_FIGHT_AGGRESSIVE
@@ -74,47 +78,29 @@ properties:
    vrIcon = reflection_male_icon_rsc
    piAnimation = PANM_NONE
    % Who the reflection is of.
-   poOriginal = $         
+   poOriginal = $
    piGender = GENDER_MALE
    pbIllusion = TRUE
 
    piSpellpower = 1
    poArrow = $
 
-   vbSummoned = TRUE
-
    ptSomethingChanged = $
 
 messages:
 
-   Constructor(iSpellPower=1, oMaster = $)
+   Constructor(iSpellPower=1,oMaster=$)
    {
       if oMaster <> $
       {
          poMaster = oMaster;
       }
-      
+
       piSpellpower = iSpellpower;
       ptManaDrain = CreateTimer(self,@ManaDrainTimer,MANA_DRAIN_DELAY);
       poArrow = Create(&Arrow);
-      
-      propagate;
-   }
 
-   KilledSomething(what=$, use_weapon=$)
-   {
-      if IsClass(poOriginal,&Player)
-         AND (NOT Send(poOriginal,@CheckPlayerFlag,#flag=PFLAG_MURDERER))
-         AND IsClass(what,&Player)
-         AND NOT (Send(what,@CheckPlayerFlag,#Flag=PFLAG_OUTLAW)
-                  OR Send(what,@CheckPlayerFlag,#Flag=PFLAG_MURDERER))
-         AND what <> poOriginal
-      {
-	      Send(poOriginal,@MsgSendUser,#message_rsc=Reflection_trouble);
-      }
-      
-      return Send(poOriginal,@KilledSomething,#what=what,
-                  #use_weapon=use_weapon);
+      propagate;
    }
 
    GetApparentName()
@@ -126,7 +112,7 @@ messages:
    {
       return Send(poOriginal,@GetName,#cap=cap);
    }
-   
+
    GetDef(cap=FALSE)
    {
       return Send(poOriginal,@GetDef,#cap=cap);
@@ -168,13 +154,13 @@ messages:
       {
          Send(self,@Delete);
       }
-      
+
       if IsClass(poOriginal,&Player)
          AND NOT Send(poOriginal,@IsLoggedOn)
       {
          Send(self,@Delete);
       }
-      
+
       propagate;
    }
 
@@ -196,14 +182,14 @@ messages:
       propagate;
    }
 
-   SomethingKilled(what = $,victim = $,use_weapon = $)
+   SomethingKilled(what=$,victim=$,use_weapon=$)
    "Someone just died, perhaps we need to clear our target."
    {
       if victim = poOriginal
       {
          post(self,@Delete);
       }
-      
+
       propagate;
    }
 
@@ -221,7 +207,7 @@ messages:
       {
          return;
       }
-      
+
       if not Send(poOriginal,@IsLoggedOn)
       {
          Send(self,@Delete);
@@ -237,9 +223,9 @@ messages:
 
       Send(poOriginal,@LoseMana,#amount=MANA_DRAIN_AMOUNT);
       Send(self,@GetOriginalInfo);
-      Send(poOwner,@Somethingchanged,#what=self);
+      Send(poOwner,@SomethingChanged,#what=self);
       ptManaDrain = CreateTimer(self,@ManaDrainTimer,MANA_DRAIN_DELAY);
-      
+
       return;
    }
 
@@ -247,25 +233,18 @@ messages:
    {
       Send(SYS,@RemoveReflection,#oReflection=self);
 
-      if poOriginal <> $
-         AND IsClass(poOriginal,&Monster)
-         AND bMonsterReport
-      {
-         Send(poOriginal,@SummonDeleted,#what=self);
-      }
-
       if poOwner <> $
          AND (IsClass(poOriginal,&Monster)
-              OR Send(poOriginal,@isLoggedOn))
+            OR Send(poOriginal,@isLoggedOn))
       {
          Send(poOwner,@SomeoneSaid,#type=SAY_MESSAGE,#string=reflection_delete,
-              #parm1=Send(self,@GetDef,#cap=TRUE),
+              #what=self,#parm1=Send(self,@GetDef,#cap=TRUE),
               #parm2=Send(self,@GetName,#cap=FALSE));
       }
-      
+
       if ptManaDrain <> $
       {
-         deletetimer(ptManaDrain);
+         DeleteTimer(ptManaDrain);
          ptManaDrain = $;
       }
 
@@ -274,7 +253,7 @@ messages:
          DeleteTimer(ptSomethingChanged);
          ptSomethingChanged = $;
       }
-      
+
       poOriginal = $;
       Send(poArrow,@Delete);
 
@@ -310,9 +289,9 @@ messages:
          piDrawfx = Send(poOriginal,@GetDrawfx);
          vrName = Send(poOriginal,@GetName);
       }
-      
+
       piGender = Send(poOriginal,@GetGender);
-      
+
       return;
    }
 
@@ -322,16 +301,13 @@ messages:
 
       if poOriginal = $
       {
-         post(self,@Delete);
+         Post(self,@Delete);
+
+         return 0;
       }
 
       iFlags = Send(poOriginal,@GetObjectFlags);
-      if IsClass(poOriginal,&Player)
-         AND (iFlags & USER_YES)
-      {
-         iFlags = (iFlags | FALSEPLAYER_YES);
-      }
-      
+
       return iFlags;
    }
 
@@ -346,22 +322,22 @@ messages:
 
       if IsClass(poOriginal,&Player)
       {
-         iWeapon = Send(poOriginal,@LookupPlayerWeapon);
+         iWeapon = Send(poOriginal,@GetWeapon);
 
          if iWeapon <> $
-         {  
-            return Send(iWeapon,@GetRange);  
+         {
+            return Send(iWeapon,@GetRange);
          }
       }
       else
       {
          return Send(poOriginal,@GetAttackRange);
       }
-      
+
       return 1;
    }
 
-   GetOffense(what = $, stroke_obj=$)
+   GetOffense(what=$,stroke_obj=$)
    {
       return Send(poOriginal,@GetOffense,#what=what,#stroke_obj=stroke_obj);
    }
@@ -380,8 +356,28 @@ messages:
       {
          oStroke = $;
       }
-      
+
       return Send(poOriginal,@GetDamage,#what=what,#stroke_obj=oStroke);
+   }
+
+   GetDamageType(what=$,use_weapon=$)
+   {
+      if poOriginal = $
+      {
+         return viAttack_type;
+      }
+
+      return Send(poOriginal,@GetDamageType,#what=what,#use_weapon=use_weapon);
+   }
+
+   GetSpellType(what=$,use_weapon=$)
+   {
+      if poOriginal = $
+      {
+         return viAttack_spell;
+      }
+
+      return Send(poOriginal,@GetSpellType,#what=what,#use_weapon=use_weapon);
    }
 
    SomethingChanged(what=$)
@@ -405,13 +401,12 @@ messages:
          % and this appeared to fix it, but players report there may
          % still be a problem.  Thus we jitter reflection updates to
          % try to avoid lots of messages being sent out at once.
-         if ptSomethingChanged <> $ 
+         if ptSomethingChanged <> $
          {
-            ptSomethingChanged = CreateTimer(self, @SomethingChangedTimer, 
-                                             500 + Random(0, 10) * 1000 / 4);
+            ptSomethingChanged = CreateTimer(self,@SomethingChangedTimer,750);
          }
       }
-      
+
       propagate;
    }
 
@@ -423,6 +418,7 @@ messages:
       {
          Post(poOwner,@SomethingChanged,#what=self);
       }
+
       return;
    }
 
@@ -430,11 +426,11 @@ messages:
    {
       if who = $
       {
-         debug("Reflection called with invalid $ SetOriginal");
+         Debug("Reflection called with invalid $ SetOriginal");
       }
       poOriginal = who;
-      piMax_Hit_Points = piSpellpower / 5;
-      piMax_hit_points = bound(piMax_hit_points,1,$);
+      piMax_Hit_Points = piSpellpower / 3;
+      piMax_hit_points = Bound(piMax_hit_points,15,40);
       piHit_Points = piMax_Hit_Points;
 
       Send(self,@GetOriginalInfo);
@@ -445,33 +441,6 @@ messages:
    GetIcon()
    {
       return Send(poOriginal,@GetIcon);
-   }
-
-   TryAttack(what=$, stroke_obj=$)
-   {
-      local bWasBad;
-
-      if IsClass(poOriginal,&Player)
-      {
-         %Is the caster bad to start with?
-         bWasBad = (Send(poOriginal,@CheckPlayerFlag,#flag=PFLAG_OUTLAW)
-                    OR Send(poOriginal,@CheckPlayerFlag,#flag=PFLAG_MURDERER));
-   
-         if NOT Send(poOriginal,@AllowPlayerAttack,#victim=what)
-         {
-            return FALSE;
-         }
-
-         % If they weren't bad and become bad, let them know.
-         if NOT bWasBad
-            AND (Send(poOriginal,@CheckPlayerFlag,#flag=PFLAG_OUTLAW)
-                 OR Send(poOriginal,@CheckPlayerFlag,#flag=PFLAG_MURDERER))
-         {
-            Send(poOriginal,@MsgSendUser,#message_rsc=Reflection_trouble);
-         }
-      }
-
-      propagate;
    }
 
    MonsterAttack(what=$)
@@ -508,7 +477,7 @@ messages:
 
       if IsClass(poOriginal,&Player)
       {
-         Weapon = Send(poOriginal,@LookupPlayerWeapon);
+         Weapon = Send(poOriginal,@GetWeapon);
          ammotype = poArrow;
 
          if Weapon <> $
@@ -524,13 +493,20 @@ messages:
                      AmmoType = i;
                   }
                }
-               
+
                Send(poOwner,@SomethingShot,#who=self,#target=poTarget,
                     #projectile=AmmoType);
             }
             else
             {
-               piAnimation = PANM_WEAPON_ATTACK;
+               if IsClass(Weapon,&TouchAttackSpell)
+               {
+                  piAnimation = PANM_CAST;
+               }
+               else
+               {
+                  piAnimation = PANM_WEAPON_ATTACK;
+               }
             }
          }
          else
@@ -550,9 +526,9 @@ messages:
                  #projectile=poOriginal);
          }
       }
-      
+
       Send(poOwner,@SomethingChanged,#what=self);
-      
+
       if IsClass(poOriginal,&Player)
       {
          piAnimation = PANM_NONE;
@@ -565,8 +541,13 @@ messages:
       return;
    }
 
-   TryLook(what = $)
+   TryLook(what=$)
    {
+      if what = $
+      {
+         return;
+      }
+
       if IsClass(poOriginal,&Player)
       {
          if Send(poOriginal,@CheckPlayerFlag,#flag=PFLAG_INVISIBLE)
@@ -581,10 +562,10 @@ messages:
       {
          Send(poOriginal,@TryLook,#what=what);
       }
-        
+
       return;
    }
-   
+
    ShowDesc()
    {
       return Send(poOriginal,@ShowDesc);
@@ -639,16 +620,23 @@ messages:
          OR what = poOriginal
          OR (IsClass(poOriginal,&Monster)
              AND IsClass(what,GetClass(poOriginal)))
+         OR IsClass(what,&Revenant)
+         OR IsClass(what,&EvilTwin)
       {
          return -100;
       }
-      
+
       return 0;
    }
 
    GetCaster()
    {
       return poOriginal;
+   }
+
+   CanEvilTwin()
+   {
+      return FALSE;
    }
 
 end

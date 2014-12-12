@@ -53,7 +53,8 @@ function_type Functions[] = {
 {"StringLength",        STRINGLENGTH,    AEXPRESSION,   ANONE},
 {"StringConsistsOf",    STRINGCONSISTSOF,AEXPRESSION,   AEXPRESSION,    ANONE},
 {"CreateTimer",         CREATETIMER,     AEXPRESSION,   AEXPRESSION,    AEXPRESSION, ANONE},
-{"DeleteTimer",         DELETETIMER,	 AEXPRESSION,   ANONE},
+{"DeleteTimer",         DELETETIMER,     AEXPRESSION,   ANONE},
+{"IsTimer",             ISTIMER,         AEXPRESSION,   ANONE},
 {"IsList",              ISLIST,          AEXPRESSION,   ANONE},
 {"IsClass",             ISCLASS,         AEXPRESSION,   AEXPRESSION,    ANONE},
 {"RoomData",            ROOMDATA,        AEXPRESSION,   ANONE},
@@ -65,6 +66,10 @@ function_type Functions[] = {
     AEXPRESSION,AEXPRESSION,ANONE},
 {"CanMoveInRoomFine",CANMOVEINROOMFINE,AEXPRESSION,AEXPRESSION,AEXPRESSION,
     AEXPRESSION,AEXPRESSION,ANONE},
+{"CanMoveInRoomHighRes",       CANMOVEINROOMHIGHRES, AEXPRESSION, AEXPRESSION,AEXPRESSION,
+	AEXPRESSION,AEXPRESSION,AEXPRESSION,AEXPRESSION,AEXPRESSION,AEXPRESSION,ANONE},
+{"GetHeight",       GETHEIGHT, AEXPRESSION, AEXPRESSION,AEXPRESSION,
+	AEXPRESSION,AEXPRESSION,ANONE},
 {"SetResource",         SETRESOURCE,     AEXPRESSION,   AEXPRESSION,  ANONE},
 {"Post",		POSTMESSAGE,   	 AEXPRESSION,	AEXPRESSION, 	ASETTINGS, ANONE},
 {"Abs",                 ABS,             AEXPRESSION,   ANONE},
@@ -87,6 +92,7 @@ function_type Functions[] = {
 {"MinigameNumberToString", MINIGAMENUMBERTOSTRING,     AEXPRESSION,   AEXPRESSION,   ANONE},
 {"MinigameStringToNumber", MINIGAMESTRINGTONUMBER,     AEXPRESSION,   ANONE},
 {"RecordStat",		RECORDSTAT,		 AEXPRESSIONS,	ANONE},
+{"GetSessionIP",        GETSESSIONIP,    AEXPRESSION,   ANONE},
    };
 
 int numfuncs = (sizeof(Functions)/sizeof(function_type));

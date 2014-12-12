@@ -24,7 +24,7 @@
 %       Difficulty = maxhealth/12 (bounded at 4 and 9)
 %    Standard Revenant difficulty:
 %       Level = 150% of maxhealth
-%       Difficulty = maxhealth/10 (bounded at 4 and 10)
+%       Difficulty = maxhealth/10 (bounded at 4 and 9)
 
 
 Revenant is Monster
@@ -38,12 +38,19 @@ resources:
    revenant_name_rsc = "revenant"
    revenant_icon_rsc = zombie.bgf
    revenant_desc_rsc = \
-   "The reward for someone's misdeeds: a battle to the death with a lost soul.  Although it is harmless to all but the murderer it haunts, anyone foolish enough to interfere will suffer the same fate."
+      "The reward for someone's misdeeds: a battle to the death with a lost "
+      "soul.  Although it is harmless to all but the murderer it haunts, "
+      "anyone foolish enough to interfere will suffer the same fate."
 
-   Rev_grouping_is_bad = "Your soul twitches as you interfere in another's battle.  You realize that you too will now be haunted when you leave this place."
+   Rev_grouping_is_bad = \
+      "Your soul twitches as you interfere in another's battle.  You "
+      "realize that you too will now be haunted when you leave this place."
    Rev_vanquished = "You feel a great weight lifted from your soul."
-   Rev_coming_to_get_ya = "Your spine tingles as you sense the foreboding presence of a pursuing revenant drawing near."
-   Rev_draining_effect = "The revenant makes a mystical motion... you feel drained."
+   Rev_coming_to_get_ya = \
+      "Your spine tingles as you sense the foreboding presence of a "
+      "pursuing revenant drawing near."
+   Rev_draining_effect = \
+      "The revenant makes a mystical motion... you feel drained."
 
 classvars:
    vrName = revenant_name_rsc
@@ -51,13 +58,16 @@ classvars:
    vrDesc = revenant_desc_rsc
 
    viAttack_type = ATCK_WEAP_SLASH
-   viDefault_behavior = AI_FIGHT_AGGRESSIVE | AI_FIGHT_SINGLEMINDED | AI_MOVE_WALKTHROUGH_WALLS | AI_FIGHT_THROUGH_WALLS
+   viDefault_behavior = \
+      AI_FIGHT_AGGRESSIVE | AI_FIGHT_SINGLEMINDED \
+      | AI_MOVE_WALKTHROUGH_WALLS | AI_FIGHT_THROUGH_WALLS
 
 properties:
 
    viSpeed = SPEED_FASTER
-   viLevel = 55                 %% These are reset in constructor
+   viLevel = 55               %% These are reset in constructor
    viDifficulty = 5
+   viVisionDistance = 100
    viKarma = 20
    viCashmin = 0
    viCashmax = 0
@@ -65,43 +75,43 @@ properties:
 
    piAnimation = ANIM_NONE
 
-   poRoom = $                  %% The room we are scheduled to be created in.
-   poHauntee = $               %% The player we are to hunt.
-   ptPlace = $                 %% Timer for the delay before we are created.
+   poRoom = $                %% The room we are scheduled to be created in.
+   poHauntee = $             %% The player we are to hunt.
+   ptPlace = $               %% Timer for the delay before we are created.
 
 messages:
 
-   Constructor(target = $, location = $, diff = 0, level = 0, karmic = 0, speed = 0)
+   Constructor(target = $,location = $,diff = 0,level = 0,karmic = 0,speed = 0)
    {
-      if target = $ 
-         OR location = $  
-         OR Send(location,@CheckRoomFlag,#flag=ROOM_NO_COMBAT) 
+      if target = $
+         OR location = $
+         OR Send(location,@CheckRoomFlag,#flag=ROOM_NO_COMBAT)
          OR Send(location,@CheckRoomFlag,#flag=ROOM_SANCTUARY)
          OR Send(location,@checkRoomFlag,#flag=ROOM_SAFE_DEATH)
       {
-         return ;
+         return;
       }
-      
+
       poRoom = location;
       poHauntee = target;
       poTarget = poHauntee;
-      
+
       if speed <> $
       {
          speed = Send(Send(SYS,@GetSettings),@GetRevenantSpeed);
          viSpeed = speed;
       }
-	  
+
       if diff <> $
       {
          viDifficulty = diff;
       }
-      
+
       if level <> $
       {
          viLevel = level;
       }
-      
+
       if karmic <> $
       {
          viKarma = karmic;
@@ -115,9 +125,9 @@ messages:
 
    Constructed()
    {
-      plResistances = [ [ 40, -ATCK_SPELL_ALL ],
-                        [ 40, ATCK_WEAP_MAGIC ],
-                        [ 25, ATCK_WEAP_PIERCE] ];
+      plResistances = [ [-ATCK_SPELL_ALL, 25 ],
+                        [ATCK_WEAP_MAGIC, 15 ],
+                        [ATCK_WEAP_PIERCE, 25] ];
       propagate;
    }
 
@@ -186,11 +196,6 @@ messages:
       return;
    }
 
-   GetVisionDistance()
-   {
-      return 9999;       %% effectively infinite
-   }
-
    MonsterAttack(what = $)
    {
       piAnimation = ANIM_ATTACK;
@@ -208,6 +213,12 @@ messages:
       return;
    }
 
+   SomethingMoved()
+   {
+      Send(Send(self,@GetOwner),@DeleteWallsAroundBattler,#who=self);
+      propagate;
+   }
+   
    SendLookAnimation()
    {
       AddPacket(1,ANIMATE_CYCLE);
@@ -339,7 +350,12 @@ messages:
    {  
       return FALSE;
    }    
-
+ 
+   CanEvilTwin()
+   {
+      return FALSE;
+   }
+   
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

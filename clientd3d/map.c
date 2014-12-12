@@ -20,17 +20,18 @@
 #include "client.h"
 
 #define MAP_WALL_THICKNESS 1
-#define MAP_PLAYER_THICKNESS 2
+#define MAP_PLAYER_THICKNESS 4
 #define MAP_OBJECT_THICKNESS 2
 
 #define MAP_WALL_COLOR          PALETTERGB(0, 0, 0)
 #define MAP_PLAYER_COLOR        PALETTERGB(0, 0, 255)
-#define MAP_PLAYER_FRONT_COLOR  PALETTERGB(0, 0, 0)   // Pixel at front of player
-#define MAP_OBJECT_COLOR        PALETTERGB(255, 0, 0)
-
-#define MAP_FRIEND_COLOR        PALETTERGB(0, 255, 0)
-#define MAP_ENEMY_COLOR         PALETTERGB(255, 0, 0)
-#define MAP_GUILDMATE_COLOR     PALETTERGB(255, 255, 0)
+#define MAP_PLAYER_FRONT_COLOR  PALETTERGB(0, 0, 0)      // Pixel at front of player
+#define MAP_OBJECT_COLOR        PALETTERGB(255, 0, 0)    // Red
+#define MAP_MINION_COLOR        PALETTERGB(0,200,0)      // Green
+#define MAP_MINION_OTH_COLOR    PALETTERGB(70,5,100)     // Purple
+#define MAP_FRIEND_COLOR        PALETTERGB(0, 255, 0)    // Bright Green
+#define MAP_ENEMY_COLOR         PALETTERGB(255, 0, 0)    // Red
+#define MAP_GUILDMATE_COLOR     PALETTERGB(255, 255, 0)  // Yellow
 
 #define MAP_OBJECT_RADIUS (FINENESS / 6)  // Radius of circle drawn for an object
 
@@ -41,8 +42,8 @@
 
 #define MAP_OBJECT_DISTANCE (7 * FINENESS) // Draw all object closer than this to player
 
-static HBRUSH hObjectBrush, hPlayerBrush, hNullBrush;
-static HPEN hWallPen, hPlayerPen, hObjectPen;
+static HBRUSH hObjectBrush, hPlayerBrush, hNullBrush, hMinionBrush, hMinionOtherBrush;
+static HPEN hWallPen, hPlayerPen, hObjectPen, hMinionPen, hMinionOtherPen;
 static HPEN hFriendPen, hEnemyPen, hGuildmatePen;
 
 static float zoom;              // Factor to zoom in on map
@@ -127,16 +128,20 @@ void MapInitialize(void)
    logBrush.lbStyle = BS_HOLLOW;
 
    hWallPen = CreatePen(PS_SOLID, MAP_WALL_THICKNESS, MAP_WALL_COLOR);
-   hPlayerPen = CreatePen(PS_SOLID, MAP_PLAYER_THICKNESS, MAP_PLAYER_COLOR);
+   hPlayerPen = CreatePen(PS_SOLID, MAP_OBJECT_THICKNESS, MAP_PLAYER_COLOR);
    hObjectPen = CreatePen(PS_SOLID, MAP_OBJECT_THICKNESS, MAP_OBJECT_COLOR);
    hFriendPen = CreatePen(PS_SOLID, MAP_PLAYER_THICKNESS, MAP_FRIEND_COLOR);
    hEnemyPen = CreatePen(PS_SOLID, MAP_PLAYER_THICKNESS, MAP_ENEMY_COLOR);
    hGuildmatePen = CreatePen(PS_SOLID, MAP_PLAYER_THICKNESS, MAP_GUILDMATE_COLOR);
-   
+   hMinionPen = CreatePen(PS_SOLID, MAP_OBJECT_THICKNESS, MAP_MINION_COLOR);
+   hMinionOtherPen = CreatePen(PS_SOLID, MAP_OBJECT_THICKNESS, MAP_MINION_OTH_COLOR);
+
+   hMinionOtherBrush = CreateSolidBrush(MAP_MINION_OTH_COLOR);
+   hMinionBrush = CreateSolidBrush(MAP_MINION_COLOR);
    hObjectBrush = CreateSolidBrush(MAP_OBJECT_COLOR);
    hPlayerBrush = CreateSolidBrush(MAP_PLAYER_COLOR);
    hNullBrush = CreateBrushIndirect(&logBrush);
-   
+
    zoom = (float) 1.0;
 
    // Load map annotation bitmap
@@ -164,7 +169,10 @@ void MapClose(void)
    DeleteObject(hFriendPen);
    DeleteObject(hEnemyPen);
    DeleteObject(hGuildmatePen);
-
+   DeleteObject(hMinionPen);
+   DeleteObject(hMinionOtherPen);
+   DeleteObject(hMinionOtherBrush);
+   DeleteObject(hMinionBrush);
    DeleteObject(hObjectBrush);
    DeleteObject(hPlayerBrush);
    DeleteObject(hNullBrush);
@@ -353,6 +361,8 @@ void MapDrawWall(HDC hdc, int x, int y, float scale, WallData *wall)
 /*
  * MapDrawObjects:  Draw a dot for each object in list, skipping the player.
  *   (x, y) is the upper-left corner of the drawing area on hdc.
+ * Note 2014-09-04: Should we be using a Switch for this, since we're
+ * expanding the amount of possible dots?
  */
 void MapDrawObjects(HDC hdc, list_type objects, int x, int y, float scale)
 {
@@ -386,53 +396,62 @@ void MapDrawObjects(HDC hdc, list_type objects, int x, int y, float scale)
       // Draw rings around players
       if (r->obj.flags & OF_PLAYER)
       {
-          float ring_radius = 2.0f * radius;
+         SelectObject(hdc, hPlayerBrush);
+         float ring_radius = 1.6f * radius;
 
-          // Guildmate?
-          SelectObject(hdc, hPlayerBrush);
-          if (r->obj.flags & OF_GUILDMATE)
-          {
-              ring_radius = 3.0f * radius;
-          }
+         if (r->obj.flags & OF_FRIEND)
+         {
+            if ((r->obj.flags & OF_ENEMY) || (r->obj.flags & OF_GUILDMATE))
+               ring_radius = 2.4f * radius;
 
-          // Friend?
-          if (r->obj.flags & OF_FRIEND)
-          {
-              SelectObject(hdc, hFriendPen);
-              Ellipse(hdc, (int) (new_x - ring_radius),
-                      (int) (new_y - ring_radius), 
-                      (int) (new_x + ring_radius),
-                      (int) (new_y + ring_radius));
-          }
+            SelectObject(hdc, hFriendPen);
+            Ellipse(hdc, (int) (new_x - ring_radius),
+                     (int) (new_y - ring_radius),
+                     (int) (new_x + ring_radius),
+                     (int) (new_y + ring_radius));
+            ring_radius = 1.6f * radius;
+         }
 
-          // Enemy?
-          if (r->obj.flags & OF_ENEMY)
-          {
-              SelectObject(hdc, hEnemyPen);
-              Ellipse(hdc, (int) (new_x - ring_radius),
-                      (int) (new_y - ring_radius), 
-                      (int) (new_x + ring_radius),
-                      (int) (new_y + ring_radius));
-          }
+         // Enemy?
+         if (r->obj.flags & OF_ENEMY)
+         {
+            SelectObject(hdc, hEnemyPen);
+            Ellipse(hdc, (int) (new_x - ring_radius),
+                     (int) (new_y - ring_radius),
+                     (int) (new_x + ring_radius),
+                     (int) (new_y + ring_radius));
+         }
 
-          if (r->obj.flags & OF_GUILDMATE)
-          {
-              ring_radius = 2.0f * radius;
-              SelectObject(hdc, hGuildmatePen);
-              Ellipse(hdc, (int) (new_x - ring_radius),
-                      (int) (new_y - ring_radius), 
-                      (int) (new_x + ring_radius),
-                      (int) (new_y + ring_radius));
-          }          
+         // Guildmate?
+         if (r->obj.flags & OF_GUILDMATE)
+         {
+             SelectObject(hdc, hGuildmatePen);
+             Ellipse(hdc, (int) (new_x - ring_radius),
+                     (int) (new_y - ring_radius),
+                     (int) (new_x + ring_radius),
+                     (int) (new_y + ring_radius));
+         }
       }
-      
-      // Draw players in a different color
+
+      /* Draw middle of player dot in a different color. If
+      / a monster is a minion then color it appropriately,
+      / otherwise it gets the standard red dot. */
       if (r->obj.flags & OF_PLAYER)
       {
           SelectObject(hdc, hPlayerPen);
           SelectObject(hdc, hPlayerBrush);
       }
-      else 
+      else if ((r->obj.flags & OF_MINION_SELF) == OF_MINION_SELF)
+      {
+          SelectObject(hdc, hMinionPen);
+          SelectObject(hdc, hMinionBrush);
+      }
+      else if ((r->obj.flags & OF_MINION_OTHER) == OF_MINION_OTHER)
+      {
+          SelectObject(hdc, hMinionOtherPen);
+          SelectObject(hdc, hMinionOtherBrush);
+      }
+      else
       {
           SelectObject(hdc, hObjectPen);
           SelectObject(hdc, hObjectBrush);
