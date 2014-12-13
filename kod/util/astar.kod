@@ -74,7 +74,7 @@ CreatePath(oFrom = $, oTo  = $, oTestRoom = $)
 	}
 
 	%create the path object, which will call the C Code to calculate our path. Add the object to the list so we can clean up later.
-	oPath = Create(&AstarPath,#oFrom=oFrom,#oTo=oTo);
+	oPath = Create(&AstarPath,#oFrom=oFrom,#oTo=oTo#lUnmoveable=Send(oRoom,@GetUnmovableCoordinates);
 	plAstarPaths = Cons(oPath,plAstarPaths);
 	
 	return oPath;

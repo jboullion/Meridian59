@@ -2833,7 +2833,7 @@ int C_CreatePath(int object_id,local_var_type *local_vars,
 				int num_normal_parms,parm_node normal_parm_array[],
 				int num_name_parms,parm_node name_parm_array[])
 {
-	val_type startrow,startcol,endrow,endcol,startrow_fine,startcol_fine,endrow_fine,endcol_fine,roomid;
+	val_type startrow,startcol,endrow,endcol,startrow_fine,startcol_fine,endrow_fine,endcol_fine,roomid,unmoveable_list;
 	
 	
 	roomid = RetrieveValue(object_id,local_vars,normal_parm_array[0].type,
@@ -2902,10 +2902,17 @@ int C_CreatePath(int object_id,local_var_type *local_vars,
 		bprintf("C_CreatePath passed non-int for endcol_fine %i,%i\n",endcol_fine.v.tag,endcol_fine.v.data);
 		return NIL;
 	}
+	unmoveable_list = RetrieveValue(object_id,local_vars,normal_parm_array[9].type,
+		normal_parm_array[9].value);
+	if (unmoveable_list.v.tag != TAG_LIST)
+	{
+		bprintf("C_CreatePath passed non-list for unmoveable_list %i,%i\n",unmoveable_list.v.tag,unmoveable_list.v.data);
+		return NIL;
+	}
 
 
 	return CreatePath(roomid.v.data, startrow.v.data-1,startcol.v.data-1,endrow.v.data-1,endcol.v.data-1,
-		startrow_fine.v.data,startcol_fine.v.data,endrow_fine.v.data,endcol_fine.v.data);
+		startrow_fine.v.data,startcol_fine.v.data,endrow_fine.v.data,endcol_fine.v.data,unmoveable_list.v.data);
 }
 int C_GetSessionIP(int object_id,local_var_type *local_vars,
             int num_normal_parms,parm_node normal_parm_array[],

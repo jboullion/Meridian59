@@ -23,6 +23,8 @@ typedef struct astarnode_struct
 	//H = To put it simply, we will use the “Manhattan distance method” (Also called “Manhattan length” or “city block distance”) 
 	//that just counts the number of horizontal and vertical square remaining to reach point B without taking into account of any obstacles or differences of land.
 	int heuristic_cost;
+	//set to false when an object is already at this location
+	bool passable;
 	//Next node on the path
 	astarnode_struct *parent;
 	//so we can make nodes into a linked list
@@ -49,6 +51,7 @@ typedef struct astarpath_struct
 } astar_path;
 
 int CreatePath(int roomid, int startrow, int startcol, int endrow, int endcol,
-               int startrow_fine, int startcol_fine, int endrow_fine, int endcol_fine);
+               int startrow_fine, int startcol_fine, int endrow_fine, int endcol_fine,
+			   int unmoveable_list);
 
 #endif /*#ifndef _ASTAR_H */

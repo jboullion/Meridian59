@@ -33,11 +33,13 @@ piDestColOffset = 0
 poFrom = $
 poTo = $
 
+plUnmoveable = $
+
 plDebugItems = $
 
 messages:
 
-Constructor(oFrom = $, oTo = $)
+Constructor(oFrom = $, oTo = $, lUnmoveable = $)
 {	
 	poFrom = oFrom;
 	poTo = oTo;
@@ -52,13 +54,14 @@ Constructor(oFrom = $, oTo = $)
 	piEndCol = Send(oTo,@GetCol);
 	piEndRow_fine = Send(oTo,@GetFineRow);
 	piEndCol_fine = Send(oTo,@GetFineCol);
+	plUnmoveable = lUnmoveable;
 	
 	if vbDebugItems AND plDebugItems <> $
 	{
 		Send(self,@RemoveDebugItems);
 	}
 	plPath = CreateAstarPath(Send(poRoom,@GetRoomData),piStartRow,piStartCol,piEndRow,piEndCol,
-                             piStartRow_fine,piStartCol_fine,piEndRow_fine,piEndCol_fine);
+                             piStartRow_fine,piStartCol_fine,piEndRow_fine,piEndCol_fine,lUnmoveable);
 	if vbDebugItems
 	{
 		Send(self,@CreateDebugItems);
@@ -122,7 +125,7 @@ TargetMoved(row = $, col = $, fine_row = FINENESS_HALF, fine_col = FINENESS_HALF
 		Send(self,@RemoveDebugItems);
 	}
 	plPath = CreateAstarPath(Send(poRoom,@GetRoomData),piStartRow,piStartCol,piEndRow,piEndCol,
-                             piStartRow_fine,piStartCol_fine,piEndRow_fine,piEndCol_fine);
+                             piStartRow_fine,piStartCol_fine,piEndRow_fine,piEndCol_fine,plUnmoveable);
 	if vbDebugItems
 	{
 		Send(self,@CreateDebugItems);

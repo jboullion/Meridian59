@@ -970,6 +970,43 @@ messages:
       
       return j;
    }
+   
+   GetUnmovableCoordinates()
+   {
+      local lUnmoveable, i, r, c;
+	  lUnmoveable = $;
+	  if plPassive <> $
+	  {
+	     for i in plPassive
+	     {
+            % try get i big coordinates
+            r = Nth(i,3);
+            c = Nth(i,4);
+			
+            % get fine values and scale to highres
+            r = ((r * FINENESS) + Nth(i,5)) / 16;
+            c = ((c * FINENESS) + Nth(i,6)) / 16;
+
+			lUnmoveable = Cons([r,c],lUnmoveable);
+	     }
+	  }
+	  if plActive <> $
+	  {
+	     for i in plActive
+	     {
+            % try get i big coordinates
+            r = Nth(i,3);
+            c = Nth(i,4);
+			
+            % get fine values and scale to highres
+            r = ((r * FINENESS) + Nth(i,5)) / 16;
+            c = ((c * FINENESS) + Nth(i,6)) / 16;
+			
+			lUnmoveable = Cons([r,c],lUnmoveable);
+	     }
+	  }
+	  return lUnmoveable;
+   }
 
    GetRandomItem()
    {

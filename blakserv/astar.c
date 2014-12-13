@@ -41,7 +41,8 @@ void ScanNode(astar_node *startnode, astar_path *path);
 
 // Creates a path
 int CreatePath(int roomid, int startrow, int startcol, int endrow, int endcol,
-               int startrow_fine, int startcol_fine, int endrow_fine, int endcol_fine)
+               int startrow_fine, int startcol_fine, int endrow_fine, int endcol_fine,
+			   int unmoveable_list)
 {
 	int rows, cols, idxstart, idxend;
 	int from_row_comb, from_col_comb, to_row_comb, to_col_comb;
