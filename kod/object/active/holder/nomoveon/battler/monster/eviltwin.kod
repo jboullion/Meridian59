@@ -51,6 +51,9 @@ classvars:
    viAttributes = 0
    viLevel = 20
    viDifficulty = 8
+
+   % Can't escape this monster's vision range.
+   viVisionDistance = 100
    viKarma = 0
    viCashmin = 0
    viCashmax = 0
@@ -60,7 +63,9 @@ classvars:
    vrSound_death = EvilTwin_sound_death
    vrMinion_trouble = EvilTwin_trouble
 
-   viDefault_behavior = AI_FIGHT_SINGLEMINDED | AI_FIGHT_MONSTERS | AI_FIGHT_NEWBIESAFE | AI_FIGHT_AGGRESSIVE
+   viDefault_behavior = \
+      AI_FIGHT_SINGLEMINDED | AI_FIGHT_MONSTERS \
+      | AI_FIGHT_NEWBIESAFE | AI_FIGHT_AGGRESSIVE
 
 properties:
 
@@ -130,10 +135,11 @@ messages:
 
       if (poOwner <> $)
          AND (IsClass(poOriginal,&Monster)
-              OR Send(poOriginal,@IsLoggedOn))
+            OR Send(poOriginal,@IsLoggedOn))
       {
          Send(poOwner,@SomeoneSaid,#type=SAY_MESSAGE,#string=EvilTwin_delete,
-              #parm1=Send(self,@GetDef,#cap=TRUE),#parm2=Send(self,@GetName,#cap=FALSE));
+               #what=self,#parm1=Send(self,@GetDef,#cap=TRUE),
+               #parm2=Send(self,@GetName,#cap=FALSE));
       }
 
       poOriginal = $;
@@ -150,8 +156,8 @@ messages:
       {
          Post(self,@Delete);
       }
-      
-      return ;
+
+      return;
    }
 
    GetApparentName()

@@ -67,33 +67,70 @@ messages:
       return piFine_col;
    }
 
-   ReqSomethingMoved(what = $,new_row = $,new_col = $,new_finerow = $,new_finecol = $)
+   ReqSomethingMoved(what = $,new_row = $,new_col = $,new_finerow = $,
+   new_finecol = $)
    {
-      local iRowHighResSrc,iColHighResSrc,iRowHighResDest,iColHighResDest;
+      local iRowWe,iColWe,iRowDest,iColDest,
+            iRowWhat,iColWhat,iRowFineWhat,iColFineWhat,iDold,iDnew;
 
-      if new_finerow = $ OR new_finecol = $
+      % Get coordinates of what.
+      iRowWhat = Send(what,@GetRow);
+      iColWhat = Send(what,@GetCol);
+
+      % Sanity check on the "big" values which can be $.
+      if new_row = $ OR new_col = $
+         OR piRow = $ OR piCol = $
       {
-         % scale dest to fine, then to highres, using middle of big square
-         iRowHighResDest = ((new_row * 64) + FINENESS_HALF) / 16;
-         iColHighResDest = ((new_col * 64) + FINENESS_HALF) / 16;
-
-         % scale src to fine, then to highres, using middle of big square
-         iRowHighResSrc = ((piRow * 64) + FINENESS_HALF) / 16;
-         iColHighResSrc = ((piCol * 64) + FINENESS_HALF) / 16;
-      }
-      else
-      {
-         % scale dest to fine, then to highres
-         iRowHighResDest = ((new_row * 64) + new_finerow) / 16;
-         iColHighResDest = ((new_col * 64) + new_finecol) / 16;
-
-         % scale src to fine, then to highres
-         iRowHighResSrc = ((piRow * 64) + piFine_row) / 16;
-         iColHighResSrc = ((piCol * 64) + piFine_col) / 16;  
+         propagate;
       }
 
-      % prevent them from stepping too close on each other
-      if abs(iRowHighResDest - iRowHighResSrc) < 2 AND abs(iColHighResDest - iColHighResSrc) < 2 AND IsClass(what,&Battler)
+      % Apply defaults on fine new values.
+      if new_finerow = $
+      {
+         new_finerow = FINENESS_HALF;
+      }
+      if new_finecol = $
+      {
+         new_finecol = FINENESS_HALF;
+      }
+
+      % Get squared distance in fine units to old and new location
+      % of the object. If the object has $ row and col values, we
+      % can skip this check.
+      if iRowWhat <> $
+         AND iColWhat <> $
+      {
+         iRowFineWhat = Send(what,@GetFineRow);
+         iColFineWhat = Send(what,@GetFineCol);
+
+         iDold = Send(self,@SquaredFineDistanceToLocation,#row=iRowWhat,
+                        #col=iColWhat,#fine_row=iRowFineWhat,
+                        #fine_col=iColFineWhat);
+         iDnew = Send(self,@SquaredFineDistanceToLocation,#row=new_row,
+                        #col=new_col,#fine_row=new_finerow,
+                        #fine_col=new_finecol);
+
+         % Don't block anything that goes away from us,
+         % not even the smallest steps.
+         if iDnew > iDold
+         {
+            propagate;
+         }
+      }
+
+      % Get highres square of ourself.
+      iRowWe = ((piRow * FINENESS) + piFine_row) / 16;
+      iColWe = ((piCol * FINENESS) + piFine_col) / 16;
+      
+      % Get highres square of requested destination.
+      iRowDest = ((new_row * FINENESS) + new_finerow) / 16;
+      iColDest = ((new_col * FINENESS) + new_finecol) / 16;
+
+      % Prevent them from stepping too close on each other.
+      % These are in highres-squares, the typical stepwidth.
+      if Abs(iRowDest - iRowWe) < 3
+         AND Abs(iColDest - iColWe) < 3
+         AND IsClass(what,&Battler)
       {
          return FALSE;
       }
@@ -267,12 +304,12 @@ messages:
       }
       return oHighest;
    }
-   
+
    GetRadiusEnchantments()
    {
       return plRadiusEnchantments;
    }
-   
+
    IsInSameRoom(what = $)
    {
       if Send(self,@GetOwner) <> $
@@ -283,16 +320,17 @@ messages:
       {
          return 1;
       }
-         
+
       return 0;
    }
 
    SquaredDistanceTo(what = $)
-   "Computes squared distance to <what>. Returns $ for any object that is not within a room."
+   "Computes squared distance to <what>. Returns $ for any object that is "
+   "not within a room."
    {
       local iRow, iCol;
       
-      If NOT Send(self,@IsInSameRoom,#what=what)
+      if NOT Send(self,@IsInSameRoom,#what=what)
       {
          return $;
       }
@@ -301,7 +339,8 @@ messages:
       iCol = Send(what,@GetCol);
 
       % Sanity checking
-      if iRow = $ OR iCol = $ OR Send(self,@GetRow) = $ OR Send(self,@GetCol) = $
+      if iRow = $ OR iCol = $
+         OR piRow = $ OR piCol = $
       {
          return $;
       }
@@ -314,8 +353,73 @@ messages:
    {
       local iRow_diff, iCol_diff;
 
-      iRow_diff = Send(self,@GetRow) - row;
-      iCol_diff = Send(self,@GetCol) - col;
+      iRow_diff = piRow - row;
+      iCol_diff = piCol - col;
+
+      return  (iRow_diff * iRow_diff + iCol_diff * iCol_diff);
+   }
+
+   SquaredFineDistanceTo(what = $)
+   "Computes squared distance to <what> in fine-units. Returns $ for any "
+   "object that is not within a room."
+   {
+      local iRow, iCol, iFineRow, iFineCol;
+      
+      if NOT Send(self,@IsInSameRoom,#what=what)
+      {
+         return $;
+      }
+
+      iRow = Send(what,@GetRow);
+      iCol = Send(what,@GetCol);
+      iFineRow = Send(what,@GetFineRow);
+      iFineCol = Send(what,@GetFineCol);
+
+      return Send(self,@SquaredFineDistanceToLocation,#row=iRow,#col=iCol,
+                  #fine_row=iFineRow,#fine_col=iFineCol);
+   }
+
+   SquaredFineDistanceToLocation(row = $,col = $,fine_row = FINENESS_HALF,
+                                 fine_col = FINENESS_HALF)
+   "Computes squared distance to (row,col)"
+   {
+      local iRow, iCol, iRow_diff, iCol_diff;
+
+      % Sanity check, big row/col can be $.
+      if row = $ OR col = $ OR piRow = $ OR piCol = $
+      {
+         return $;
+      }
+
+      % Scale to fine
+      iRow = (piRow * FINENESS) + piFine_row;
+      iCol = (piCol * FINENESS) + piFine_col;
+      row = (row * FINENESS) + fine_row;
+      col = (col * FINENESS) + fine_col;
+
+      % Deltas
+      iRow_diff = iRow - row;
+      iCol_diff = iCol - col;
+
+      return  (iRow_diff * iRow_diff + iCol_diff * iCol_diff);
+   }
+
+   SqFineDistToVision(what = $)
+   "Computes squared distance to <what> in fine-units. Optimised for "
+   "monster vision check. Returns squared fine units, divide by "
+   "FINENESS_SQUARED to compare to squared row/col units."
+   {
+      local iRow, iCol, iWhatRow, iWhatCol, iRow_diff, iCol_diff;
+
+      % Scale to fine.
+      iRow = piRow * FINENESS + piFine_row;
+      iCol = piCol * FINENESS + piFine_col;
+      iWhatRow = Send(what,@GetRow) * FINENESS + Send(what,@GetFineRow);
+      iWhatCol = Send(what,@GetCol) * FINENESS + Send(what,@GetFineCol);
+
+      % Deltas.
+      iRow_diff = iRow - iWhatRow;
+      iCol_diff = iCol - iWhatCol;
 
       return  (iRow_diff * iRow_diff + iCol_diff * iCol_diff);
    }

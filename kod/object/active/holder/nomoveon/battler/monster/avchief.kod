@@ -83,7 +83,8 @@ classvars:
       | AI_FIGHT_WIZARD_KILLER | AI_FIGHT_MONSTERS
    viLevel = 135
    viDifficulty = 9
-   viKarma = 80
+   viVisionDistance = 28
+   viKarma = 85
    viCashmin = 650
    viCashmax = 2000
 

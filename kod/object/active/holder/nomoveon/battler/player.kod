@@ -186,6 +186,9 @@ resources:
    player_cancel_rescue_phase = \
       "~IThe protective magics that might have rescued you instead "
       "snap and fade as you phase out of existence."
+   player_cancel_rescue_newowner = \
+      "~IYour change of location disrupts Shal'ille's attempt to whisk "
+      "you to safety."
 
    player_improved = "~I~BYou have improved in the art of %s."
    player_improved_wav_rsc = imp.wav
@@ -196,6 +199,8 @@ resources:
       "Hey!  You almost hit %s%s!  Good thing your safety was on!"
    player_safety_caught_minion = \
       "Hey!  You almost hit %s%s's minion! Good thing your safety was on!"
+   player_own_minion = \
+      "You cannot attack your own minion!"
 
    player_safe_server = \
       "You are not allowed to attack other players in this world."
@@ -1671,6 +1676,17 @@ messages:
          }
       }
 
+      % Stop any rescue attempts if the user changes rooms.
+      if ptRescue <> $
+      {
+         if pbLogged_on
+         {
+            Send(self,@MsgSendUser,#message_rsc=player_cancel_rescue_newowner);
+         }
+         DeleteTimer(ptRescue);
+         ptRescue = $;
+      }
+
       return;
    }
 
@@ -2067,9 +2083,9 @@ messages:
          Send(self,@MsgSendUser,#message_rsc=player_assgame_soon);
       }
 
-      if Send(self,@GetGuild) <> $
+      if poGuild <> $
       {
-         Send(Send(self,@GetGuild),@SendUserMOTD,#who=self);
+         Send(poGuild,@SendUserMOTD,#who=self);
       }
 
       if piPoisonStrength > 0
@@ -2836,7 +2852,7 @@ messages:
    "Return this player's guild hall, or NIL if none"
    {
       local oGuild;
-      oGuild = Send(self, @GetGuild);
+      oGuild = poGuild;
 
       if oGuild = $
       {
@@ -3313,10 +3329,12 @@ messages:
             if Send(self,@IsLoggedOn)
                OR IsClass(what,&Phase)
             {
-               % TODO: First(i) isn't always a timer?
                if First(i) <> $
                {
-                  DeleteTimer(First(i));
+                  if IsTimer(First(i))
+                  {
+                     DeleteTimer(First(i));
+                  }
                   SetNth(i,1,$);
                }
             }
@@ -3930,8 +3948,8 @@ messages:
       % Default location to check is where we are.
       oRoom = poOwner;
 
-      % If the victim is in a room, then check that location instead.  This allows
-      %  distance attacks (like wall spells) to work properly.
+      % If the victim is in a room, then check that location instead.  This
+      % allows distance attacks (like wall spells) to work properly.
       if victim <> $
          AND Send(victim,@GetOwner) <> poOwner
       {
@@ -3946,7 +3964,7 @@ messages:
 
       % Make sure room allows the attack. Check if room has
       % special combat affects.
-      if actual = TRUE
+      if actual
          AND NOT Send(oRoom,@ReqSomethingAttack,#what=self,#victim=victim,
                      #use_weapon=use_weapon,#stroke_obj=stroke_obj,
                      #report=report,#actual=actual)
@@ -3956,8 +3974,8 @@ messages:
 
       % Don't halo non-attackables in guild_pk_only zones (typically an
       % unguilded outlaw). Necessary because it just looks confusing
-      if actual = FALSE
-         AND Send(oRoom,@AllowGuildAttack,#what=self,#victim=victim) = FALSE
+      if NOT actual
+         AND NOT Send(oRoom,@AllowGuildAttack,#what=self,#victim=victim)
       {
          return FALSE;
       }
@@ -3979,7 +3997,7 @@ messages:
          AND victim <> self
       {
          oVictimGuild = Send(victim,@GetGuild);
-         oGuild = Send(self,@GetGuild);
+         oGuild = poGuild;
          if oVictimGuild <> $
             AND oGuild <> $
             AND (oGuild = oVictimGuild
@@ -4034,7 +4052,21 @@ messages:
          {
             if NOT Send(self,@CheckPlayerFlag,#flag=PFLAG_PKILL_ENABLE)
             {
-               Send(self,@MsgSendUser,#message_rsc=player_cant_hit_newbie_minion);
+               if report
+               {
+                  Send(self,@MsgSendUser,
+                        #message_rsc=player_cant_hit_newbie_minion);
+               }
+
+               return FALSE;
+            }
+
+            if Send(victim,@GetMaster) = self
+            {
+               if report
+               {
+                  Send(self,@MsgSendUser,#message_rsc=player_own_minion);
+               }
 
                return FALSE;
             }
@@ -4130,7 +4162,7 @@ messages:
                if report
                {
                   if Send(SYS,@IsPKAllowed)
-                  {   
+                  {
                      Send(self,@MsgSendUser,#message_rsc=player_guardian_angel,
                            #parm1=Send(victim,@GetDef),
                            #parm2=Send(victim,@GetName));
@@ -4188,7 +4220,7 @@ messages:
 
       % Stop any rescue attempts if the user makes an attack.
       if ptRescue <> $
-         AND actual = TRUE
+         AND actual
       {
          Send(self,@MsgSendUser,#message_rsc=player_cancel_rescue);
          DeleteTimer(ptRescue);
@@ -4664,8 +4696,8 @@ messages:
                AND Send(stroke_obj,@GetNumSpellTargets) = 1))
       {
          iAngle = Send(self,@GetAngle);
-         iRow = Send(self,@GetRow);
-         iCol = Send(self,@GetCol);
+         iRow = piRow;
+         iCol = piCol;
          iTargetRow = Send(oTarget,@GetRow);
          iTargetCol = Send(oTarget,@GetCol);
 
@@ -4806,20 +4838,24 @@ messages:
       return Bound(iOffense,1,2000);
    }
 
-   % This returns the battler's ability to avoid being hit.  Ranges from 1 to 1000.
    GetDefense(what = $, stroke_obj=$)
+   "This returns the battler's ability to avoid being hit. "
+   "Ranges from 1 to 2000."
    {
-      local i, oWeapon, oShield, iParry, iDodge, iBlock, iAgility, iDefense, oMonster;
+      local i, oWeapon, oShield, iParry, iDodge, iBlock, iAgility,
+            iDefense, iHealth, oMonster;
 
       % Morphed?
       oMonster = Send(self,@GetIllusionForm);
       if (oMonster <> $) and Send(self,@CheckPlayerFlag,#flag=PFLAG_MORPHED)
       {
-         iDefense = Send(oMonster,@GetDefense,#what=what,#stroke_obj=stroke_obj);
+         iDefense = Send(oMonster,@GetDefense,#what=what,
+                        #stroke_obj=stroke_obj);
       }
       else
       {
-         % A player's defense is based on his dodge, parry, block skills, agility, and max hps.
+         % A player's defense is based on his dodge, parry,
+         % block skills, agility, and max hps.
          iParry = 0;
          iDodge = 0;
          iBlock = 0;
@@ -4833,8 +4869,12 @@ messages:
          iDodge = Send(self,@GetDodgeAbility,#stroke_obj=stroke_obj);
 
          iAgility = Send(self,@GetAgility);
+
+         % Bind health between 20-150 for defense calculation.
+         iHealth = Bound(piBase_Max_Health,20,150);
+
          iDefense = iParry + iBlock + (iDodge*2) + (iAgility*8)
-                     + (200 * piBase_Max_Health)/(100 + Send(self,@GetStamina));
+                     + (200 * iHealth)/(100 + Send(self,@GetStamina));
       }
 
       for i in plDefense_modifiers
@@ -5130,9 +5170,9 @@ messages:
          
          for i in plDefense_modifiers
          {
-            damage = Send(i,@ModifyDefenseDamage,#who=self,
-                           #what=what,#damage=damage,
-                           #atype=atype,#aspell=aspell);
+            damage = Send(i,@ModifyDefenseDamage,#who=self,#what=what,
+                           #damage=damage,#atype=atype,#aspell=aspell,
+                           #report_resistance=report_resistance);
             Send(i,@DefendingHit,#who=self,#what=what);
          }
       
@@ -5445,7 +5485,8 @@ messages:
    KilledSomething(what = $,use_weapon = $,stroke_obj = $)
    "Called when the player killed something."
    {
-      local bReflection, i, oSoldierShield, monstkarma, iChance, oEnemyGuild, shrunken;
+      local bReflection, i, oSoldierShield, monstkarma, iChance, oEnemyGuild,
+      shrunken, oVictimRoom;
 
       % If we killed someone or something, we did damage.
       Send(self,@SetPlayerFlag,#flag=PFLAG_DID_DAMAGE,#value=TRUE);
@@ -5500,92 +5541,109 @@ messages:
          Send(oSoldierShield,@KilledSomething,#what=what);
       }
 
-      if IsClass(what,&User) AND NOT Send(poOwner,@SafePlayerAttack)
+      if IsClass(what,&User)
          AND what <> self
       {
-         Send(Send(SYS, @GetStatistics), @PlayerKillsCounter);
+         % Use the room the victim died in to determine if there are penalties
+         % for this kill. Otherwise we can get away with it in rare instances.
+         % Victim's room is still the one they died in.
+         oVictimRoom = Send(what,@GetOwner);
 
-         if Send(what,@CheckPlayerFlag,#flag=PFLAG_OUTLAW)
-            OR Send(what,@CheckPlayerFlag,#flag=PFLAG_MURDERER)
+         if oVictimRoom = $
+            OR NOT Send(oVictimRoom,@SafePlayerAttack)
          {
-            piJustified_kill_count = piJustified_kill_count + 1;
-         }
-         else
-         {
-            piKill_count = piKill_count + 1;
-            piKill_count_decay = piKill_count_decay + 1;
-         }
+            Send(Send(SYS,@GetStatistics),@PlayerKillsCounter);
 
-         if NOT bReflection
-            AND NOT Send(what,@IsIllusion)
-         {
-            Send(self,@AddKarma,#amount=Send(self,@CalculateKarmaChangeFromKill,
-                  #karma_killer=Send(self,@GetKarma),
-                  #karma_victim=Send(what,@GetKarma)));
-         }
-
-         if NOT Send(what,@CheckPlayerFlag,#flag=PFLAG_MURDERER)
-            AND NOT Send(what,@CheckPlayerFlag,#flag=PFLAG_OUTLAW)
-            AND NOT Send(what,@CheckPlayerFlag,#flag=PFLAG_ANONYMOUS)
-            AND NOT Send(what,@CheckPlayerFlag,#flag=PFLAG_MORPHED)
-            AND NOT IsClass(poOwner,&GuildHall)
-         {
-            %Attacked an innocent!
-
-            % Check for enemy guild - If both guilds are enemies, then they can
-            % whack on each other freely, without murderer or faction penalty.
-            oEnemyGuild = Send(what,@GetGuild);
-
-            % Check for various murderer things if any are true:
-            % We're not in a guild, opponent wasn't in a guild, we're not in a mutual war
-            % AND if we're not a faction soldier, the opponent isn't an opposing faction soldier
-            if (poGuild = $
-                OR oEnemyGuild = $
-                OR NOT Send(poGuild,@IsMutualEnemy,#otherguild=oEnemyGuild))
-               AND (oSoldierShield = $
-                    OR NOT Send(oSoldierShield,@IsEnemyAttack,#what=what,#damage=TRUE))
+            if Send(what,@CheckPlayerFlag,#flag=PFLAG_OUTLAW)
+               OR Send(what,@CheckPlayerFlag,#flag=PFLAG_MURDERER)
             {
-               % SUBTLE BUG: Somehow, the faction check is missed when you kill something.
-               % We check it here, but only for players. This means that if you score
-               % just the killing blow on a factioned monster, you won't get checked for
-               % faction loss. It's a bug, but currently not that vital.
-               
-               % Check to see if the attack was faction-based.
-               Send(self,@CheckFactionAttack,#what=what);
+               piJustified_kill_count = piJustified_kill_count + 1;
+            }
+            else
+            {
+               piKill_count = piKill_count + 1;
+               piKill_count_decay = piKill_count_decay + 1;
+            }
 
-               % Apply penalties for someone NOT holding a token
-               if Send(what,@FindUsing,#class=&Token) = $
+            if NOT bReflection
+               AND NOT Send(what,@IsIllusion)
+            {
+               Send(self,@AddKarma,#amount=Send(self,@CalculateKarmaChangeFromKill,
+                     #karma_killer=Send(self,@GetKarma),
+                     #karma_victim=Send(what,@GetKarma)));
+            }
+
+            if NOT Send(what,@CheckPlayerFlag,#flag=PFLAG_MURDERER)
+               AND NOT Send(what,@CheckPlayerFlag,#flag=PFLAG_OUTLAW)
+               AND NOT Send(what,@CheckPlayerFlag,#flag=PFLAG_ANONYMOUS)
+               AND NOT Send(what,@CheckPlayerFlag,#flag=PFLAG_MORPHED)
+               AND NOT IsClass(oVictimRoom,&GuildHall)
+            {
+               % Attacked an innocent!
+
+               % Check for enemy guild - If both guilds are enemies, then
+               % they can whack on each other freely, without murderer or
+               % faction penalty.
+               oEnemyGuild = Send(what,@GetGuild);
+
+               % Check for various murderer things if any are true:
+               % We're not in a guild, opponent wasn't in a guild, we're
+               % not in a mutual war
+               % AND if we're not a faction soldier, the opponent isn't an
+               % opposing faction soldier
+               if (poGuild = $
+                   OR oEnemyGuild = $
+                   OR NOT Send(poGuild,@IsMutualEnemy,#otherguild=oEnemyGuild))
+                  AND (oSoldierShield = $
+                       OR NOT Send(oSoldierShield,@IsEnemyAttack,
+                                    #what=what,#damage=TRUE))
                {
-                  if Send(self,@CheckPlayerFlag,#flag=PFLAG_MURDERER)
-                  {
-                     Send(self,@MsgSendUser,#message_rsc=player_killed_player);
-                  }
-                  else
-                  {
-                     Send(self,@MsgSendUser,#message_rsc=player_wanted_now,
-                           #parm1=Send(what,@GetDef),#parm2=Send(what,@GetName));
-                     Send(self,@SetPlayerFlag,#flag=PFLAG_MURDERER,#value=TRUE);
-                     Send(self,@SetPlayerFlag,#flag=PFLAG_OUTLAW,#value=FALSE);
-                     Send(self,@EvaluatePKStatus,#dbug=TRUE);
-                  }
+                  % SUBTLE BUG: Somehow, the faction check is missed when you
+                  % kill something. We check it here, but only for players.
+                  % This means that if you score just the killing blow on a
+                  % factioned monster, you won't get checked for faction loss.
+                  % It's a bug, but currently not that vital.
+                  
+                  % Check to see if the attack was faction-based.
+                  Send(self,@CheckFactionAttack,#what=what);
 
-                  % Does the lucky murderer win a Revenant?
-                  % If it was an easy fight, lets haunt em more often than if
-                  % it was competitive (or the victim at least had a shot)
-                  % If were twice as strong as them, we get haunted.
-                  % If the victim was good, we get haunted.
-                  iChance = Send(self,@RevenantChance,#target=what);
-                  if (random(1,100) < iChance) AND NOT Send(SYS,@GetChaosNight)
+                  % Apply penalties for someone NOT holding a token
+                  if Send(what,@FindUsing,#class=&Token) = $
                   {
-                     Send(self,@SetPlayerFlag,#flag=PFLAG_HAUNTED,#value=TRUE);
-                     Send(self,@MsgSendUser,#message_rsc=player_haunted_on,
-                          #parm1=Send(what,@GetCapDef),
-                          #parm2=Send(what,@GetName,#Cap=TRUE));
-                     Create(&Revenant,#target=self,#location=poOwner,
-                            #level=Bound((((piBase_Max_health*110)/100)+
-                                 (7*piKill_Count_decay)),95,180),
-                            #diff=bound(piBase_Max_health/12,4,9),
-                            #karmic=-piKarma/100);
+                     if Send(self,@CheckPlayerFlag,#flag=PFLAG_MURDERER)
+                     {
+                        Send(self,@MsgSendUser,#message_rsc=player_killed_player);
+                     }
+                     else
+                     {
+                        Send(self,@MsgSendUser,#message_rsc=player_wanted_now,
+                              #parm1=Send(what,@GetDef),#parm2=Send(what,@GetName));
+                        Send(self,@SetPlayerFlag,#flag=PFLAG_MURDERER,#value=TRUE);
+                        Send(self,@SetPlayerFlag,#flag=PFLAG_OUTLAW,#value=FALSE);
+                        Send(self,@EvaluatePKStatus,#dbug=TRUE);
+                     }
+
+                     % Does the lucky murderer win a Revenant?
+                     % If it was an easy fight, lets haunt em more often than if
+                     % it was competitive (or the victim at least had a shot)
+                     % If were twice as strong as them, we get haunted.
+                     % If the victim was good, we get haunted.
+                     iChance = Send(self,@RevenantChance,#target=what);
+                     if (random(1,100) < iChance) AND NOT Send(SYS,@GetChaosNight)
+                     {
+                        Send(self,@SetPlayerFlag,#flag=PFLAG_HAUNTED,#value=TRUE);
+                        if poOwner <> $
+                        {
+                           Send(self,@MsgSendUser,#message_rsc=player_haunted_on,
+                                 #parm1=Send(what,@GetCapDef),
+                                 #parm2=Send(what,@GetName,#Cap=TRUE));
+                           Create(&Revenant,#target=self,#location=poOwner,
+                                 #level=Bound((((piBase_Max_health*110)/100)+
+                                    (7*piKill_Count_decay)),95,180),
+                                 #diff=bound(piBase_Max_health/12,4,9),
+                                 #karmic=-piKarma/100);
+                        }
+                     }
                   }
                }
             }
@@ -5713,9 +5771,12 @@ messages:
 
    RevenantChance(who=$,target=$)
    {
-      local oChance, oGuild, iFaction, oSpell;
+      local oChance, oGuild, iFaction, oSpell, oVictimRoom;
 
-      if IsClass(poOwner,&Guildhall)
+      oVictimRoom = Send(target,@GetOwner);
+
+      if oVictimRoom = $
+         OR IsClass(oVictimRoom,&Guildhall)
       {
          return 0;
       }
@@ -5792,10 +5853,10 @@ messages:
       oChance = (bound(oChance,20,80) + (5*piKill_count_decay));
 
       oSpell = Send(SYS,@FindSpellByNum,#num=SID_MARTYRS_BATTLEGROUND);
-      if Send(poOwner,@IsEnchanted,#what=oSpell)
+      if Send(oVictimRoom,@IsEnchanted,#what=oSpell)
       {
          oChance = oChance +
-               (oChance * Send(poOwner,@GetEnchantmentState,#what=oSpell) / 100);
+               (oChance * Send(oVictimRoom,@GetEnchantmentState,#what=oSpell) / 100);
       }
       oChance = Bound(oChance,40,95);
 
@@ -8343,7 +8404,8 @@ messages:
          if monster_level > piBase_Max_health
          {
             if killing_blow
-               AND Send(self,@CheckPlayerFlag,#flag=PFLAG_TOOK_DAMAGE)
+               AND (Send(self,@CheckPlayerFlag,#flag=PFLAG_TOOK_DAMAGE)
+                  OR Send(self,@CheckPlayerFlag,#flag=PFLAG_DODGED))
             {
                % Player took damage and landed killing blow
                gain = 2;
@@ -8395,7 +8457,8 @@ messages:
             %  no roll chance.
             if (monster_level + 5) > piBase_Max_health
                AND IsClass(what,&monster) AND killing_blow 
-               AND Send(self,@CheckPlayerFlag,#flag=PFLAG_TOOK_DAMAGE)
+               AND (Send(self,@CheckPlayerFlag,#flag=PFLAG_TOOK_DAMAGE)
+                  OR Send(self,@CheckPlayerFlag,#flag=PFLAG_DODGED))
             {
                gain = 1;
             }
@@ -8426,7 +8489,8 @@ messages:
                AND NOT group_member_kill
                AND killing_blow
                AND (monster_level + 5) > piBase_Max_health
-               AND Send(self,@CheckPlayerFlag,#flag=PFLAG_TOOK_DAMAGE)
+               AND (Send(self,@CheckPlayerFlag,#flag=PFLAG_TOOK_DAMAGE)
+                  OR Send(self,@CheckPlayerFlag,#flag=PFLAG_DODGED))
             {
                gain = gain + 1;
             }
@@ -11327,6 +11391,7 @@ messages:
          }
 
          if IsClass(nObj,&UtilitySpell)
+            OR IsClass(nObj,&Blink)
          {
             continue;
          }
@@ -12790,15 +12855,138 @@ messages:
       return TRUE;
    }
 
+   % Designed this just like GetSpellSchoolLevels in case a skill school
+   % is added later and this needs to be extended.
+   GetSkillSchoolLevels()
+   {
+      local i, lSchoolLevels, oSkill, iLevel, weaponcraft_level;
+
+      weaponcraft_level = 0;
+      iLevel = 0;
+
+      for i in plSkills
+      {
+         oSkill = Send(SYS,@FindSkillByNum,#num=Send(self,@DecodeSkillNum,
+                                                      #compound=i));
+         iLevel = Send(oSkill,@GetLevel);
+
+         if iLevel > weaponcraft_level
+         {
+            weaponcraft_level = iLevel;
+         }
+      }
+
+      lSchoolLevels = [weaponcraft_level];
+
+      return lSchoolLevels;
+   }
+
+   GetSpellSchoolLevels(include_cant_forget=FALSE)
+   {
+      local i, lSchoolLevels, oSpell, iSchool, iLevel, iCanForget,
+            shalille_level, qor_level, kraanan_level, faren_level,
+            riija_level, jala_level;
+
+      shalille_level = 0;
+      qor_level = 0;
+      kraanan_level = 0;
+      faren_level = 0;
+      riija_level = 0;
+      jala_level = 0;
+      iCanForget = TRUE;
+
+      % Get max level in each school. Yes, this is ugly but I'm trying for
+      % the least number of comparisons possible per spell. Schools in order
+      % of popularity, your results may vary. 10/25/2014 103 stats: 578 kran,
+      % 228 faren, 284 shal, 160 riija, 216 qor, 151 jala
+      for i in plSpells
+      {
+         oSpell = Send(SYS,@FindSpellByNum,#num=Send(self,@DecodeSpellNum,
+                                                      #compound=i));
+         iSchool = Send(oSpell,@GetSchool);
+         iLevel = Send(oSpell,@GetLevel);
+         iCanForget = Send(oSpell,@CanForget);
+
+         if (iCanForget) OR (NOT iCanForget AND include_cant_forget)
+         {
+            if (iSchool = SS_KRAANAN)
+            {
+               if (iLevel > kraanan_level)
+               {
+                  kraanan_level = iLevel;
+               }
+            }
+            else
+            {
+               if (iSchool = SS_SHALILLE)
+               {
+                  if (iLevel > shalille_level)
+                  {
+                     shalille_level = iLevel;
+                  }
+               }
+               else
+               {
+                  if (iSchool = SS_QOR)
+                  {
+                     if (iLevel > qor_level)
+                     {
+                        qor_level = iLevel;
+                     }
+                  }
+                  else
+                  {
+                     if (iSchool = SS_FAREN)
+                     {
+                        if (iLevel > faren_level)
+                        {
+                           faren_level = iLevel;
+                        }
+                     }
+                     else
+                     {
+                        if (iSchool = SS_RIIJA)
+                        {
+                           if (iLevel > riija_level)
+                           {
+                              riija_level = iLevel;
+                           }
+                        }
+                        else
+                        {
+                           if (iSchool = SS_JALA)
+                           {
+                              if (iLevel > jala_level)
+                              {
+                                 jala_level = iLevel;
+                              }
+                           }
+                        }
+                     }
+                  }
+               }
+            }
+         }
+      }
+
+      % Order matters here, they appear in the order listed in blakston.khd.
+      lSchoolLevels = [shalille_level,qor_level,kraanan_level,
+                       faren_level,riija_level,jala_level];
+
+      return lSchoolLevels;
+   }
+
    StripSpellsOfSchool(school = 0, All = FALSE)
    {
-      local i;
+      local i, iSpellNum, oSpell;
 
       for i in plSpells
       {
-         if All OR Send(Send(SYS,@FindSpellByNum,#num=i),@GetSchool) = school
+         iSpellNum = Send(self,@DecodeSpellNum,#compound=i);
+         oSpell = Send(SYS,@FindSpellByNum,#num=iSpellNum);
+         if All OR Send(oSpell,@GetSchool) = school
          {
-            Send(self,@RemoveSpell,#num=Send(self,@DecodeSpellNum,#compound=i));
+            Send(self,@RemoveSpell,#num=iSpellNum);
          }
       }
 

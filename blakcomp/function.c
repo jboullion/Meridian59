@@ -94,6 +94,7 @@ function_type Functions[] = {
 {"RecordStat",		RECORDSTAT,		 AEXPRESSIONS,	ANONE},
 {"CreateAstarPath",		CREATEPATH,		 AEXPRESSION,   AEXPRESSION,   AEXPRESSION,   AEXPRESSION,
     AEXPRESSION,    AEXPRESSION,   AEXPRESSION,   AEXPRESSION,   AEXPRESSION,   ANONE},
+{"GetSessionIP",        GETSESSIONIP,    AEXPRESSION,   ANONE},
    };
 
 int numfuncs = (sizeof(Functions)/sizeof(function_type));

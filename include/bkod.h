@@ -185,6 +185,8 @@ enum
    RECORDSTAT = 210,
 
    CREATEPATH = 215,
+   
+   GETSESSIONIP = 220,
 };
 
 enum

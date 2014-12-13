@@ -85,7 +85,8 @@ properties:
 
    % Can't cast a teleport spell until this long after attacking someone.  Prevents
    % hit-and-run.  If 0, there's no restriction on when the spell can be cast.
-   piTeleportAttackDelaySec = 2 * 60
+   % Time in seconds.
+   piTeleportAttackDelaySec = 240
 
    % Rescue always takes at least this long to cast
    piRescueBaseDelaySec = 15
@@ -121,17 +122,8 @@ properties:
    % Speedhack & Teleport protection
    %
    
-   % Worst lagspike
-   piMoveMaxLag = 1500
-   
-   % Limit for processing simultaneous move requests (due to TCP)
-   piMoveMaxSimulReq = 6
-   
-   % The default interval the server expects from the client
-   piMoveDefaultInterval = 250
-   
-   % A tolerance that is given on each move step
-   piMoveStepTolerance = 70
+   % Maximum amount of tokens in the movement bucket
+   piMovementBucketMax = 15000000
    
    %
    % Miscellaneous
@@ -376,26 +368,11 @@ messages:
    % Speedhack & teleport protection
    %
 
-   GetMoveMaxLag()
+   GetMovementBucketMax()
    {
-	  return piMoveMaxLag;
+      return piMovementBucketMax;
    }
-   
-   GetMoveMaxSimulReq()
-   {
-      return piMoveMaxSimulReq;
-   }
-   
-   GetMoveDefaultInterval()
-   {
-      return piMoveDefaultInterval;
-   }
-   
-   GetMoveStepTolerance()
-   {
-      return piMoveStepTolerance;
-   }
-   
+
    %
    % Miscellaneous
    %
