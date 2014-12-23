@@ -2515,9 +2515,13 @@ messages:
 
       Send(self,@ToCliShading);
       Send(poOwner,@SendSectorChanges,#who=self);
+      Send(poOwner,@SendSectorFlagChanges,#who=self);
       Send(poOwner,@SendSectorLightChanges,#who=self);
       Send(poOwner,@SendWallChanges,#who=self);
       Send(poOwner,@SendTextureChanges,#who=self);
+
+      % Check weather here also.
+      Send(self,@WeatherChanged);
 
       return;
    }
@@ -3633,6 +3637,21 @@ messages:
          SendPacket(poSession);
       }
       
+      return;
+   }
+
+   SectorChangeSendUser(sector=$, depth=$, scrollSpeed=$)
+   "Sent by room when one of the sector's properties have changed. "
+   "This handles scrolling and depth which rarely require changing, "
+   "other protocols already handle animation and textures."
+   {
+      if pbLogged_on
+      {
+         AddPacket(1,BP_SECTOR_CHANGE,2,sector,1,depth,1,scrollSpeed);
+
+         SendPacket(poSession);
+      }
+
       return;
    }
 
@@ -7708,6 +7727,23 @@ messages:
          SendPacket(poSession);
       }
       
+      return;
+   }
+
+   WeatherChanged()
+   {
+      if pbLogged_on
+      {
+         % First clear whichever effect we have.
+         AddPacket(1,BP_EFFECT,2,EFFECT_CLEARWEATHER);
+         SendPacket(poSession);
+
+         % Then send the needed effect.
+         AddPacket(1,BP_EFFECT);
+         AddPacket(2,Send(poOwner,@GetRoomWeather));
+         SendPacket(poSession);
+      }
+
       return;
    }
 

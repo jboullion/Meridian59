@@ -554,6 +554,11 @@ messages:
       return;
    }
 
+   SectorChangeSendUser()
+   {
+      return;
+   }
+
    SectorLightSendUser()
    {
       return;
@@ -710,6 +715,12 @@ messages:
 
    BackgroundChanged()
    "This is sent when room background bitmap changes."
+   {
+      return;
+   }
+
+   WeatherChanged()
+   "This is sent when the room weather changes."
    {
       return;
    }

@@ -1056,6 +1056,10 @@
    ROOM_JIG           = 0x4000
    % Prevents monsters from fighting, but doesn't stop players
    ROOM_NO_MOB_COMBAT = 0x8000
+   % Is it raining here?
+   ROOM_RAINING       = 0x10000
+   % Is it snowing here?
+   ROOM_SNOWING       = 0x20000
 
    % Terrain constants, used to tell what type of terrain the room is.
    TERRAIN_GUILDHALL = 0x0000001
@@ -1166,6 +1170,22 @@
    CTF_BELOWWALL       = 0x04
    CTF_FLOOR           = 0x08
    CTF_CEILING         = 0x10
+
+   % Constants for sector depth (i.e. water sectors).
+   % Same names as those used in client.
+   SF_DEPTH0 = 0x00000000      % Sector has default (0) depth
+   SF_DEPTH1 = 0x00000001      % Sector has shallow depth
+   SF_DEPTH2 = 0x00000002      % Sector has deep depth
+   SF_DEPTH3 = 0x00000003      % Sector has very deep depth
+
+   % Constants for sector texture scroll speed.
+   SCROLL_NONE   = 0x00000000
+   SCROLL_SLOW   = 0x00000001
+   SCROLL_MEDIUM = 0x00000002
+   SCROLL_FAST   = 0x00000003
+
+   % Constant for a BP_SECTOR_CHANGE variable override.
+   CHANGE_OVERRIDE = 0x00000004
 
    % Fineness per block
    FINENESS = 64
