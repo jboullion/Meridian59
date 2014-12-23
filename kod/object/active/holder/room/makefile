@@ -16,7 +16,8 @@ BOFS =  barlqrm.bof crnthrm.bof jasperrm.bof kocarm.bof marnrm.bof tosrm.bof \
 	guest1.bof guest2.bof guest3.bof guest4.bof guest5.bof guest7.bof guest8.bof \
 	castle2e.bof gallery.bof \
 	bowhut.bof tpost1.bof tpost2.bof rentroom.bof necarena.bof \
-   jixa.bof east1.bof east2.bof east3.bof east4.bof east5.bof
+   jixa.bof east1.bof east2.bof east3.bof east4.bof east5.bof jixaba.bof \
+   jixabb.bof jixabc.bof jixabd.bof
 
 # Removed
 #        a4.bof a5.bof b4.bof b5.bof b7.bof b8.bof c3.bof c8.bof c9.bof \
