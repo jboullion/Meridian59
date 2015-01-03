@@ -169,11 +169,9 @@ messages:
             Send(qorCaster,@MsgSendUser,#message_rsc=QorBane_HurtCaster);
          }
 
-         %Conceptually: ((iSpellPower/15) * (qorSpellLevel/2) * random(8,12))/10
-         iDamageAmt = (iSpellPower * qorSpellLevel * random(8,12))/300;
+         iDamageAmt = random(iSpellPower*qorSpellLevel*3,iSpellPower*qorSpellLevel*4);
 
-         if Send(qorCaster,@AssessDamage,#report=FALSE,#what=self,
-                 #damage=iDamageAmt,#aspell=ATCK_SPELL_HOLY) = $
+         if Send(qorCaster,@AssessDamage,#report=FALSE,#what=self,#damage=iDamageAmt,#aspell=ATCK_SPELL_HOLY,#precision=TRUE) = $
          {
             if IsClass(qorCaster,&Player)
             {
