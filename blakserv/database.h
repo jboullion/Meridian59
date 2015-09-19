@@ -46,6 +46,9 @@ typedef struct sql_record_totalmoney sql_record_totalmoney;
 typedef struct sql_record_moneycreated sql_record_moneycreated;
 typedef struct sql_record_playerlogin sql_record_playerlogin;
 typedef struct sql_record_playerassessdamage sql_record_playerassessdamage;
+typedef struct sql_record_playerdeath sql_record_playerdeath;
+typedef struct sql_record_player sql_record_player;
+typedef struct sql_record_playersuicide sql_record_playersuicide;
 typedef enum sql_recordtype sql_recordtype;
 typedef enum sql_worker_state sql_worker_state;
 
@@ -92,19 +95,54 @@ struct sql_record_playerassessdamage
 	char* weapon;
 };
 
+struct sql_record_playerdeath
+{
+	char* victim;
+	char* killer;
+	char* room;
+	char* attack;
+	int ispvp;
+};
+
+struct sql_record_player
+{
+   int account_id;
+   char* name;
+   int home;
+   int bind;
+   char* guild;
+   int max_health;
+   int max_mana;
+   int might;
+   int p_int;
+   int myst;
+   int stam;
+   int aim;
+   int agil;
+};
+
+struct sql_record_playersuicide
+{
+   int account_id;
+   char* name;
+};
+
 enum sql_recordtype
 {
 	STAT_TOTALMONEY		= 1,
-	STAT_MONEYCREATED	= 2,
-	STAT_PLAYERLOGIN	= 3,
-	STAT_ASSESS_DAM		= 4
+	STAT_MONEYCREATED	   = 2,
+	STAT_PLAYERLOGIN	   = 3,
+	STAT_ASSESS_DAM		= 4,
+	STAT_PLAYERDEATH	   = 5,
+   STAT_PLAYER          = 6,
+   STAT_PLAYERSUICIDE   = 7
 };
 
 enum sql_worker_state
 {
 	STOPPED			= 0,
-	STOPPING		= 1,
-	STARTING		= 2,
+	STOPPING		   = 1,
+	STARTING		   = 2,
 	INITIALIZED		= 3,
 	CONNECTED		= 4,
 	SCHEMAVERIFIED	= 5
@@ -117,6 +155,11 @@ BOOL MySQLRecordTotalMoney(int total_money);
 BOOL MySQLRecordMoneyCreated(int money_created);
 BOOL MySQLRecordPlayerLogin(char* account, char* character, char* ip);
 BOOL MySQLRecordPlayerAssessDamage(char* who, char* attacker, int aspell, int atype, int applied, int original, char* weapon);
+BOOL MySQLRecordPlayerDeath(char* victim, char* killer, char* room, char* attack, int ispvp);
+BOOL MySQLRecordPlayer( int account_id, char* name, int home, int bind, char* guild,
+                        int max_health, int max_mana, int might, int p_int, int myst,
+                        int stam, int agil, int aim);
+BOOL MySQLRecordPlayerSuicide(int account_id, char* name);
 
 void __cdecl _MySQLWorker(void* Parameters);
 void _MySQLVerifySchema();
@@ -128,4 +171,7 @@ void _MySQLWriteTotalMoney(sql_record_totalmoney* Data, BOOL ProcessNode);
 void _MySQLWriteMoneyCreated(sql_record_moneycreated* Data, BOOL ProcessNode);
 void _MySQLWritePlayerLogin(sql_record_playerlogin* Data, BOOL ProcessNode);
 void _MySQLWritePlayerAssessDamage(sql_record_playerassessdamage* Data, BOOL ProcessNode);
+void _MySQLWritePlayerDeath(sql_record_playerdeath* Data, BOOL ProcessNode);
+void _MySQLWritePlayer(sql_record_player* Data, BOOL ProcessNode);
+void _MySQLWritePlayerSuicide(sql_record_playersuicide* Data, BOOL ProcessNode);
 #endif
